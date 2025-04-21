@@ -1,2 +1,2 @@
 # ChatApp
- Minimal chat app 
+ Minimal group chat app created by me
