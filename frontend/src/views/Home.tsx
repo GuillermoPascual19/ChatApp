@@ -8,9 +8,10 @@ const Home = () => {
     const [message, setMessage] = useState('')
     const [messages, setMessages] = useState<{ from: string, body: string}[]>([])
 
-    const socket = io('http://localhost:5000')
+    // const socket = io('http://localhost:5000')
+    const socket = io('https://chatapp-87po.onrender.com')
 
-    const yourName = 'Me'
+    // const yourName = 'Me'
     
     const handleSendMessage = () => {
         socket.emit('message', message)
