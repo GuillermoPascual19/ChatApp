@@ -8,7 +8,7 @@ const server = http.createServer(app);
 
 const io = new SocketServer(server, {
     cors:{
-        origin: ['http://localhost:5173', "https://chatapp-87po.onrender.com"],
+        origin: ['http://localhost:5173', "https://chat-app-drab-delta-83.vercel.app/"],
         methods: ['GET', 'POST'],
     }
 });
