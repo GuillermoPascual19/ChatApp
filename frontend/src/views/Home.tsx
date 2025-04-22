@@ -9,7 +9,9 @@ const Home = () => {
     const [messages, setMessages] = useState<{ from: string, body: string}[]>([])
 
     // const socket = io('http://localhost:5000')
-    const socket = io('https://chatapp-87po.onrender.com')
+    const socket = io('https://chatapp-87po.onrender.com', {
+        transports: ['websocket']
+    })
 
     // const yourName = 'Me'
     
@@ -19,6 +21,7 @@ const Home = () => {
     }
 
     useEffect(() => {
+        fetch("https://chatapp-87po.onrender.com") //llamda al backend para "activarlo
         socket.on('connect', () => {
             console.log('Connected to server')
             setIsLoading(false)
