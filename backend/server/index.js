@@ -13,21 +13,62 @@ const io = new SocketServer(server, {
     }
 });
 
+const peers = {};
+
+const getNewCoordinator = () => {
+    const peerIds = Object.keys(peers);
+    if( peerIds.length === 0) return null;
+
+    const minorId = [...peerIds].sort();
+    return minorId[0];
+}
+
+const updateCoordinator = () => {
+    const newCoordinatorId = getNewCoordinator();
+
+    //Actualizar estado de coordinador de todos los peers
+    Object.keys(peers).forEach(id => {
+        peers[id].isCoordinator = id === newCoordinatorId;
+    })
+
+    //NOtificar a todos los clientes sobre el nuevo coordinador
+    io.emit('coordinator', newCoordinatorId);
+    io.emit('peers-list', Object.values(peers))
+}
+
+
 io.on('connection', (socket) => {
     console.log('New client connected', socket.id)
 
-    socket.on('message', (body) => {
-        console.log('Message received:', body)
-        //socket.broadcast.emit('message', msg)
-        io.emit('message', {
-            body,
-            from: socket.id.slice(6), //SIX ELEMENTS OF THE SOCKET ID
-        })
+    //Registrar nuevo peer
+    peers[socket.id] = {
+        id: socket.id,
+        isCoordinator: false
+    }
+
+    //Actualizar coordinador
+    updateCoordinator();
+
+    //Enviar señales entre pares
+    socket.on('signal', ({to, data}) => {
+        io.to(to).emit('signal', { from: socket.id, data })
     })
 
     socket.on('disconnect', () => {
         console.log('Client disconnected', socket.id)
+        delete peers[socket.id];
+        updateCoordinator();
     })
+
+    // //OPCIONAL: MANEJAR MENSAJES DE CHAT(si decido mantener algun mensaje en el servidor)
+    // socket.on('chat-message', (message) => {
+    //     //Registrar mensaje si el servidor los almacena temporalmente
+    //     io.emit('chat-message', {
+    //         from: socket.id,
+    //         message: message,
+    //         timestamp: Date.now()
+    //     })
+    // })
 })
 
 const PORT = 5000;
