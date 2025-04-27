@@ -14,6 +14,10 @@ const io = new SocketServer(server, {
     }
 });
 
+
+
+
+
 const peers = {};
 const messageHistory = []; // Almacena todos los mensajes del chat
 
