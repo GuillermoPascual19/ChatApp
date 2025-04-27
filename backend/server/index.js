@@ -5,6 +5,7 @@ import http from 'http';
 
 const app = express();
 const server = http.createServer(app);
+app.use(cors());
 
 const io = new SocketServer(server, {
     cors:{
@@ -14,13 +15,15 @@ const io = new SocketServer(server, {
 });
 
 const peers = {};
+const messageHistory = []; // Almacena todos los mensajes del chat
 
 const getNewCoordinator = () => {
     const peerIds = Object.keys(peers);
     if( peerIds.length === 0) return null;
 
-    const minorId = [...peerIds].sort()[0];
-    return minorId;
+    return peerIds.sort()[0];
+    //const minorId = [...peerIds].sort()[0];
+   // return minorId;
 }
 
 const updateCoordinator = () => {
@@ -43,11 +46,28 @@ io.on('connection', (socket) => {
     //Registrar nuevo peer
     peers[socket.id] = {
         id: socket.id,
-        isCoordinator: false
+        isCoordinator: false,
+        timestamp: Date.now()
     }
+  // Enviar historial de mensajes al nuevo usuario
+  socket.emit('message-history', messageHistory); // 📜 Envía todo el historial
+  
+  // Enviar lista de peers actualizada
+  socket.emit('peer-list', Object.values(peers));
 
     //Actualizar coordinador
     updateCoordinator();
+
+    socket.on('send-message', (message) => {
+        const messageData = {
+          sender: socket.id,
+          text: message.text,
+          timestamp: Date.now(),
+        };
+    
+        messageHistory.push(messageData); // Guardar en historial
+        io.emit('new-message', messageData); // Transmitir a todos
+      });
 
     //Enviar señales entre pares
     socket.on('signal', ({to, data}) => {
@@ -71,7 +91,7 @@ io.on('connection', (socket) => {
     // })
 })
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
     console.log('Server listening on port', PORT);

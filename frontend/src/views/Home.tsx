@@ -40,23 +40,32 @@ const Home = () => {
         }
 
         //Enviar mensaje a todos los peers conectados
-        Object.values(dataChannels.current).forEach( (dc) => {
+        Object.entries(dataChannels.current).forEach(([peerId,dc]) => {
             if(dc.readyState === 'open'){
-                dc.send(JSON.stringify({
-                    type: 'message',
-                    data: message
-                }))
+                try {
+                    dc.send(JSON.stringify({
+                        type: 'message',
+                        data: message
+                    }))
+                } catch(error) {
+                    console.error(`Error sending message to ${peerId}:`, error)
+                }
             }
         })
-
         setMessages(prev => [...prev, newMsg])
         setMessage('')
     };
 
     const setupPeerConnection = (peerId: string) => {
         if(peerConnections.current[peerId]) return
+
+        console.log('Setting up peer connection for', peerId)
         const pc = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302'}]
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302'},
+                { urls: 'stun:stun1.l.google.com:19302'},
+                { urls: 'stun:stun2.l.google.com:19302'}
+            ]
         })
         peerConnections.current[peerId] = pc
         
@@ -67,28 +76,36 @@ const Home = () => {
                     data: { type: 'candidate', candidate: event.candidate}
                 })
             }
+        }
 
-            //Si somos el que iniciar la conexion, creamos el data channel
-            if(myId.localeCompare(peerId) > 0) {
-                const dc = pc.createDataChannel('chat')
-                
-                setupDataChannel(peerId, dc)
-                pc.createOffer()
-                .then(offer => pc.setLocalDescription(offer))
-                .then(() => {
-                    if(socketRef.current && pc.localDescription) {
-                        socketRef.current?.emit('signal', {
-                            to: peerId,
-                            data: pc.localDescription
-                        })
-                    }
-                    
-                })
-                .catch(console.error)
-            } else {
-                pc.ondatachannel = (event) => {
-                    setupDataChannel(peerId, event.channel)
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state with ${peerId}`, pc.connectionState)
+        }
+
+        pc.onconnectionstatechange = () => {
+            console.log(` ICE connection state with ${peerId}`, pc.iceConnectionState)
+        }
+
+        //Si somos el que iniciar la conexion, creamos el data channel
+        if(myId > peerId) {
+            const dc = pc.createDataChannel('chat', {negotiated: true, id: 0})
+            setupDataChannel(peerId, dc)
+
+            pc.createOffer()
+            .then(offer => pc.setLocalDescription(offer))
+            .then(() => {
+                if(socketRef.current && pc.localDescription) {
+                    socketRef.current.emit('signal', {
+                        to: peerId,
+                        data: pc.localDescription
+                    })
                 }
+                
+            })
+            .catch(error => console.error('Error creating offer', error))
+        } else {
+            pc.ondatachannel = (event) => {
+                setupDataChannel(peerId, event.channel)
             }
         }
     };
@@ -101,13 +118,23 @@ const Home = () => {
 
             //Si somos coordinador y se conecta nuevo cliente, enviamos el historial de mensajes
             if( isCoordinator){
-                dc.send(JSON.stringify({ type: 'history', messages}))
+                dc.send(JSON.stringify({ type: 'history', data: messages}))
             }
         };
+
+        dc.onclose = () => {
+            console.log(`Data channel with ${peerId} closed`)
+            delete dataChannels.current[peerId]
+        }
+
+        dc.onerror = (error) => {
+            console.error(`Data channel error with ${peerId}:`, error)
+        }
 
         dc.onmessage = (event ) => {
             try {
                 const message = JSON.parse(event.data)
+                console.log('Received message', message)
 
                 if(message.type === 'message') {
                     setMessages(prev => [...prev, { 
@@ -129,7 +156,9 @@ const Home = () => {
 
     useEffect(() => {
         const socket = io('https://chatapp-87po.onrender.com', {
-            transports: ['websocket']
+            transports: ['websocket'],
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
         })
         socketRef.current = socket
         
@@ -158,45 +187,45 @@ const Home = () => {
 
             const pc = peerConnections.current[from]
             if(!pc) return 
-            
-            if (data.type === 'offer') {
-                pc.setRemoteDescription(new RTCSessionDescription(data))
-                .then(() => pc.createAnswer())
-                .then(answer => pc.setLocalDescription(answer))
-                .then(() => { 
-                    if(socketRef.current && pc.localDescription) {
-                        socketRef.current.emit('signal', {to: from, data: pc.localDescription})
-                    }
-                }).catch(console.error)
-            } else if(data.type === 'answer') {
-                pc.setRemoteDescription(new RTCSessionDescription(data))
-                    .catch(console.error)
-            } else if(data.type === 'candidate') {
-                pc.addIceCandidate(new RTCIceCandidate(data))
-                    .catch(console.error)
+            try {
+                if (data.type === 'offer') {
+                    pc.setRemoteDescription(new RTCSessionDescription(data))
+                    .then(() => pc.createAnswer())
+                    .then(answer => pc.setLocalDescription(answer))
+                    .then(() => { 
+                        if(socketRef.current && pc.localDescription) {
+                            socketRef.current.emit('signal', {to: from, data: pc.localDescription})
+                        }
+                    }).catch(error => console.error('Error handling offer: ', error))
+                } else if(data.type === 'answer') {
+                    pc.setRemoteDescription(new RTCSessionDescription(data))
+                        .catch(error => console.error('Error handling answer: ', error))
+                } else if(data.type === 'candidate') {
+                    pc.addIceCandidate(new RTCIceCandidate(data))
+                        .catch(error => console.error('Error adding ICE candidate: ', error))
+                }
+            } catch(error) {
+                console.error('Error processing signal:', error)
             }
+            
         });
         
         socket.on('info-coordinador', (idcoordinador: string) => {
             if(idcoordinador && idcoordinador !== socket.id){
-                    const dc = dataChannels.current[idcoordinador]
-
+                const dc = dataChannels.current[idcoordinador]
             
-             if(dc && dc.readyState === 'open'){
-               dc.send(JSON.stringify({ type: 'request-history'})); 
+                if(dc && dc.readyState === 'open'){
+                    dc.send(JSON.stringify({ type: 'request-history'})); 
                 }
              }
-          //  const coordinator = idcoordinador.find(p => p.isCoordinator)
-           // setIsCoordinator(coordinator?.id === socket.id)
-
-            //Establecer conexiones P2P con cada par
-           // idcoordinador.forEach(peer => {
-             //   if(peer.id !== socket.id && !peerConnections.current[peer.id]) setupPeerConnection(peer.id)
-           // })
         });
 
+        
+        socket.on('disconnect' , () => {
+            console.log('Disconnected from server')
+        })
         return () => {
-            socket.disconnect()
+            if(socketRef.current) socketRef.current.disconnect()
             Object.values(peerConnections.current).forEach(pc => pc.close())
         }
     }, [])    
