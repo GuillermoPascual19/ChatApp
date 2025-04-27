@@ -19,8 +19,8 @@ const getNewCoordinator = () => {
     const peerIds = Object.keys(peers);
     if( peerIds.length === 0) return null;
 
-    const minorId = [...peerIds].sort();
-    return minorId[0];
+    const minorId = [...peerIds].sort()[0];
+    return minorId;
 }
 
 const updateCoordinator = () => {
@@ -51,7 +51,7 @@ io.on('connection', (socket) => {
 
     //Enviar señales entre pares
     socket.on('signal', ({to, data}) => {
-        io.to(to).emit('signal', { from: socket.id, data })
+        if (peers[to]) io.to(to).emit('signal', { from: socket.id, data })
     })
 
     socket.on('disconnect', () => {

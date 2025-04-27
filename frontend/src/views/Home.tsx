@@ -29,11 +29,6 @@ const Home = () => {
     const socketRef = useRef<Socket | null>(null)
     const peerConnections = useRef<Record<string, RTCPeerConnection>>({})
     const dataChannels = useRef<Record<string, RTCDataChannel>>({})
-
-    const socket = io('https://chatapp-87po.onrender.com', {
-        transports: ['websocket']
-    })
-    socketRef.current = socket
     
     const handleSendMessage = () => {
         if(!message.trim()) return 
@@ -45,7 +40,7 @@ const Home = () => {
         }
 
         //Enviar mensaje a todos los peers conectados
-        Object.entries(dataChannels.current).forEach(([, dc]) => {
+        Object.values(dataChannels.current).forEach( (dc) => {
             if(dc.readyState === 'open'){
                 dc.send(JSON.stringify({
                     type: 'message',
@@ -59,13 +54,14 @@ const Home = () => {
     };
 
     const setupPeerConnection = (peerId: string) => {
+        if(peerConnections.current[peerId]) return
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302'}]
         })
         peerConnections.current[peerId] = pc
         
         pc.onicecandidate = (event) => {
-            if(event.candidate) {
+            if(event.candidate && socketRef.current) {
                 socketRef.current?.emit('signal', {
                     to: peerId,
                     data: { type: 'candidate', candidate: event.candidate}
@@ -80,11 +76,15 @@ const Home = () => {
                 pc.createOffer()
                 .then(offer => pc.setLocalDescription(offer))
                 .then(() => {
-                    socketRef.current?.emit('signal', {
-                        to: peerId,
-                        data: pc.localDescription
-                    })
+                    if(socketRef.current && pc.localDescription) {
+                        socketRef.current?.emit('signal', {
+                            to: peerId,
+                            data: pc.localDescription
+                        })
+                    }
+                    
                 })
+                .catch(console.error)
             } else {
                 pc.ondatachannel = (event) => {
                     setupDataChannel(peerId, event.channel)
@@ -97,53 +97,56 @@ const Home = () => {
         dataChannels.current[peerId] = dc
 
         dc.onopen = () => {
-            console.log('Data channel with ${peerId} is open')
+            console.log(`Data channel with ${peerId} is open`)
 
             //Si somos coordinador y se conecta nuevo cliente, enviamos el historial de mensajes
-            if( isCoordinator && dc.readyState === 'open'){
+            if( isCoordinator){
                 dc.send(JSON.stringify({ type: 'history', messages}))
             }
         };
 
         dc.onmessage = (event ) => {
-            const message = JSON.parse(event.data)
+            try {
+                const message = JSON.parse(event.data)
 
-            if(message.type === 'message') {
-                setMessages(prev => [...prev, { 
-                    from: peerId, 
-                    body: message.data, 
-                    timestamp: Date.now()
-                }])
-            } else if (message.type === 'history') {
-                setMessages(prev => [
-                    ...prev,
-                    ...message.data.map((msg: Message) => ({ ...msg, isHistory: true}))
-                ])
-            } else if (message.type === 'request-history') {
-                dc.send(JSON.stringify({
-                    type: 'history',
-                    data: messages
-                }))
+                if(message.type === 'message') {
+                    setMessages(prev => [...prev, { 
+                        from: peerId, 
+                        body: message.data, 
+                        timestamp: Date.now()
+                    }])
+                } else if (message.type === 'history') {
+                    setMessages(prev => [
+                        ...message.data.map((msg: Message) => ({ ...msg, isHistory: true})),
+                        ...prev
+                    ])
+                }
+            } catch (error) {
+                console.error('Error parsing message', error)
             }
         }
     };
 
     useEffect(() => {
+        const socket = io('https://chatapp-87po.onrender.com', {
+            transports: ['websocket']
+        })
+        socketRef.current = socket
+        
         socket.on('connect', () => {
             console.log('Connected to server')
             setMyId(socket.id || '');
-            console.log('Finished loading')
         })
 
-        //Manejo de nuevos pares y coordinacion
-        socket.on('peers-list', (peerList: Peer[]) => {
+        socket.on('peer-list', (peerList: Peer[]) => {
             setPeers(peerList)
             const coordinator = peerList.find(p => p.isCoordinator)
             setIsCoordinator(coordinator?.id === socket.id)
 
-            //Establecer conexiones P2P con cada par
             peerList.forEach(peer => {
-                if(peer.id !== socket.id && !peerConnections.current[peer.id]) setupPeerConnection(peer.id)
+                if(peer.id !== socket.id) {
+                    setupPeerConnection(peer.id)
+                }
             })
         })
 
@@ -154,29 +157,43 @@ const Home = () => {
             if(!peerConnections.current[from]) setupPeerConnection(from)
 
             const pc = peerConnections.current[from]
+            if(!pc) return 
+            
             if (data.type === 'offer') {
                 pc.setRemoteDescription(new RTCSessionDescription(data))
                 .then(() => pc.createAnswer())
                 .then(answer => pc.setLocalDescription(answer))
                 .then(() => { 
-                    socket.emit('signal', {to: from, data: pc.localDescription})
-                })            
+                    if(socketRef.current && pc.localDescription) {
+                        socketRef.current.emit('signal', {to: from, data: pc.localDescription})
+                    }
+                }).catch(console.error)
             } else if(data.type === 'answer') {
                 pc.setRemoteDescription(new RTCSessionDescription(data))
+                    .catch(console.error)
             } else if(data.type === 'candidate') {
                 pc.addIceCandidate(new RTCIceCandidate(data))
+                    .catch(console.error)
             }
         });
+        
+        socket.on('info-coordinador', (idcoordinador: string) => {
+            if(idcoordinador && idcoordinador !== socket.id){
+                    const dc = dataChannels.current[idcoordinador]
 
-        //Solicitar historial si hay coordinador
-        socket.on('coordinator', (coordinatorId: string) => {
-            if(coordinatorId && coordinatorId !== socket.id) {
-                const dc = dataChannels.current[coordinatorId]
-                if(dc && dc.readyState === 'open') {
-                    dc.send(JSON.stringify({ type: 'request-history'}))
+            
+             if(dc && dc.readyState === 'open'){
+               dc.send(JSON.stringify({ type: 'request-history'})); 
                 }
-            }
-        })
+             }
+          //  const coordinator = idcoordinador.find(p => p.isCoordinator)
+           // setIsCoordinator(coordinator?.id === socket.id)
+
+            //Establecer conexiones P2P con cada par
+           // idcoordinador.forEach(peer => {
+             //   if(peer.id !== socket.id && !peerConnections.current[peer.id]) setupPeerConnection(peer.id)
+           // })
+        });
 
         return () => {
             socket.disconnect()
@@ -187,44 +204,47 @@ const Home = () => {
     return (
     <>
         <div className="flex h-screen bg-gray-100">
-            <div className='flex-1 flex flex-col'>
-                <div className='p-4 border-b'>
-                    <span className='font-bold'>Your ID:</span> {myId} {isCoordinator && <span className='ml-2 bg-green-500 text-white px-2 py-1 rounded text-sm'>Coordinator</span>}
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-2">
-                    {messages.map((msg, index) => (
-                        <div key={index} className={`p-2 rounded ${msg.isHistory ? 'bg-green-50' : 'bg-red-50'} shadow-sm`}>
-                            <strong>{msg.from}</strong>: {msg.body}
-                            {msg.isHistory && <span className='text-gray-500 ml-2 text-xs'>(history)</span>}
-                        </div>
-                        
-                    ))}
-                </div>
-                <div className='p-4 border-t'>
-                    <div className='flex items-center max-w-2x1 mx-auto'>
-                        <input type='text' placeholder='Type a message...' 
-                            className='flex-1 border rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:rings-blue-500'
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)} 
-                        />
-                        <button className='bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg p-2 px-4' 
-                            onClick={handleSendMessage}
-                            >
-                            Send
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div className='w-64 border-l bg-white p-4 overflow-y-auto'>
+            <div className='w-64 border-r bg-white p-4 overflow-y-auto'>
                 <h3 className='font-bold text-lg mb-4'>Connected Peers: ({peers.length})</h3>
                 <ul className='space-y-2'>
                     {peers.map(peer => (
                         <li key={peer.id} className={`p-2 rounded ${peer.isCoordinator ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                            {peer.id} {peer.isCoordinator && "(Coodinador)"}
+                            <div className='truncate'>{peer.id}</div>
+                            {peer.isCoordinator && <div className='text-xs text-green-600'>Coodinador</div>}
                         </li>
                     ))}
                 </ul>
+            </div>
+            <div className='flex-1 flex flex-col'>
+                <div className='p-4 border-b' >
+                    <span className='font-bold'>Your ID:</span> {myId} {isCoordinator && <span className='ml-2 bg-green-500 text-white px-2 py-1 rounded text-sm'>Coordinator</span>}
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 flex justify-center">
+                    <div className='w-full max-w-2xl space-y-2'>
+                        {messages.map((msg, index) => (
+                            <div key={index} className={`p-2 rounded ${msg.isHistory ? 'bg-green-50' : 'bg-red-50'} shadow-sm`}>
+                                <strong>{msg.from}</strong>: {msg.body}
+                                {msg.isHistory && <span className='text-gray-500 ml-2 text-xs'>(history)</span>}
+                            </div>
+                            
+                        ))}
+                    </div>
+                </div>
+                <div className='p-4 border-t'>
+                    <div className='flex justify-end'>
+                        <div className='flex w-full max-w-2xl'>
+                            <input type='text' placeholder='Type a message...' 
+                                className='flex-1 border rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:rings-blue-500'
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                            />
+                            <button className='bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg p-2 px-4' onClick={handleSendMessage}>
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </>
