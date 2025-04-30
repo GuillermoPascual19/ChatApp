@@ -8,96 +8,111 @@ const server = http.createServer(app);
 app.use(cors());
 
 const io = new SocketServer(server, {
-    cors:{
+    cors: {
         origin: ['http://localhost:5173', "https://chat-app-drab-delta-83.vercel.app"],
         methods: ['GET', 'POST'],
     }
 });
 
+// Estructura para almacenar información por canal
+const channels = {};
 
-
-
-
-const peers = {};
-const messageHistory = []; // Almacena todos los mensajes del chat
-
-const getNewCoordinator = () => {
-    const peerIds = Object.keys(peers);
-    if( peerIds.length === 0) return null;
-
+const getNewCoordinator = (channel) => {
+    const peerIds = Object.keys(channels[channel]?.peers || {});
+    if (peerIds.length === 0) return null;
     return peerIds.sort()[0];
-    //const minorId = [...peerIds].sort()[0];
-   // return minorId;
-}
+};
 
-const updateCoordinator = () => {
-    const newCoordinatorId = getNewCoordinator();
+const updateCoordinator = (channel) => {
+    const newCoordinatorId = getNewCoordinator(channel);
+    
+    if (!channels[channel]) return;
+    
+    // Actualizar estado de coordinador
+    Object.keys(channels[channel].peers).forEach(id => {
+        channels[channel].peers[id].isCoordinator = id === newCoordinatorId;
+    });
 
-    //Actualizar estado de coordinador de todos los peers
-    Object.keys(peers).forEach(id => {
-        peers[id].isCoordinator = id === newCoordinatorId;
-    })
-
-    //NOtificar a todos los clientes sobre el nuevo coordinador
-    io.emit('coordinator', newCoordinatorId);
-    io.emit('peers-list', Object.values(peers))
-}
-
+    // Notificar a los clientes del canal
+    io.to(channel).emit('peer-list', {
+        peers: Object.values(channels[channel].peers),
+        coordinator: newCoordinatorId
+    });
+};
 
 io.on('connection', (socket) => {
-    console.log('New client connected', socket.id)
-
-    //Registrar nuevo peer
-    peers[socket.id] = {
-        id: socket.id,
-        isCoordinator: false,
-        timestamp: Date.now()
-    }
-  // Enviar historial de mensajes al nuevo usuario
-  socket.emit('message-history', messageHistory); // 📜 Envía todo el historial
-  
-  // Enviar lista de peers actualizada
-  socket.emit('peer-list', Object.values(peers));
-
-    //Actualizar coordinador
-    updateCoordinator();
-
-    socket.on('send-message', (message) => {
-        const messageData = {
-          sender: socket.id,
-          text: message.text,
-          timestamp: Date.now(),
-        };
+    console.log('New client connected', socket.id);
     
-        messageHistory.push(messageData); // Guardar en historial
-        io.emit('new-message', messageData); // Transmitir a todos
-      });
+    let currentChannel = '';
 
-    //Enviar señales entre pares
-    socket.on('signal', ({to, data}) => {
-        if (peers[to]) io.to(to).emit('signal', { from: socket.id, data })
-    })
+    socket.on('join-channel', (channel) => {
+        // Salir del canal anterior si existe
+        if (currentChannel) {
+            socket.leave(currentChannel);
+            delete channels[currentChannel].peers[socket.id];
+            if (Object.keys(channels[currentChannel].peers).length === 0) {
+                delete channels[currentChannel];
+            } else {
+                updateCoordinator(currentChannel);
+            }
+        }
+        
+        // Unirse al nuevo canal
+        currentChannel = channel;
+        socket.join(channel);
+        
+        // Inicializar canal si no existe
+        if (!channels[channel]) {
+            channels[channel] = {
+                peers: {},
+                messageHistory: []
+            };
+        }
+        
+        // Registrar nuevo peer
+        channels[channel].peers[socket.id] = {
+            id: socket.id,
+            isCoordinator: false
+        };
+        
+        // Actualizar coordinador
+        updateCoordinator(channel);
+        
+        // Enviar información inicial al cliente
+        socket.emit('channel-info', {
+            peers: Object.values(channels[channel].peers),
+            coordinator: getNewCoordinator(channel),
+            history: channels[channel].messageHistory
+        });
+    });
+
+    // Señalización WebRTC
+    socket.on('signal', ({ to, data }) => {
+        if (channels[currentChannel]?.peers[to]) {
+            io.to(to).emit('signal', { from: socket.id, data });
+        }
+    });
+
+    // Guardar mensaje en el historial (solo si viene del coordinador)
+    socket.on('save-message', (message) => {
+        if (channels[currentChannel]?.peers[socket.id]?.isCoordinator) {
+            channels[currentChannel].messageHistory.push(message);
+        }
+    });
 
     socket.on('disconnect', () => {
-        console.log('Client disconnected', socket.id)
-        delete peers[socket.id];
-        updateCoordinator();
-    })
-
-    // //OPCIONAL: MANEJAR MENSAJES DE CHAT(si decido mantener algun mensaje en el servidor)
-    // socket.on('chat-message', (message) => {
-    //     //Registrar mensaje si el servidor los almacena temporalmente
-    //     io.emit('chat-message', {
-    //         from: socket.id,
-    //         message: message,
-    //         timestamp: Date.now()
-    //     })
-    // })
-})
+        if (currentChannel && channels[currentChannel]) {
+            delete channels[currentChannel].peers[socket.id];
+            if (Object.keys(channels[currentChannel].peers).length === 0) {
+                delete channels[currentChannel];
+            } else {
+                updateCoordinator(currentChannel);
+            }
+        }
+    });
+});
 
 const PORT = process.env.PORT || 5000;
-
 server.listen(PORT, () => {
     console.log('Server listening on port', PORT);
 });
-console.log('Server running on port', PORT);
