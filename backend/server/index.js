@@ -1,209 +1,103 @@
+// index.js (Backend)
 import express from 'express';
 import cors from 'cors';
 import { Server as SocketServer } from 'socket.io';
 import http from 'http';
 
-// Configuración del servidor Express
 const app = express();
-app.use(cors({
-  origin: ['http://localhost:5173', 'https://chat-app-drab-delta-83.vercel.app'],
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
-
-// Crear el servidor HTTP
+app.use(cors());
 const server = http.createServer(app);
 
-// Configuración de Socket.io con límite aumentado para transferencia de archivos
 const io = new SocketServer(server, {
-  cors:{
-    origin: ['http://localhost:5173', 'https://chat-app-drab-delta-83.vercel.app'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  },
-  pingTimeout: 60000,
-  maxHttpBufferSize: 2 * 1024 * 1024 // 2MB para archivos
+  cors: {
+    origin: ['http://localhost:5173', 'https://your-deployment-url.com'],
+    methods: ['GET', 'POST']
+  }
 });
 
-// Estado global
-const users = {}; // Almacenar usuarios conectados
-let coordinator = null; // ID del coordinador actual
-const chatHistory = {
-  general: [],    // Canal general
-  tecnico: [],    // Canal técnico
-  soporte: []     // Canal de soporte
+// Channel structure: { name: string, history: array, coordinator: string }
+const channels = {
+  general: { history: [], coordinator: null },
+  tech: { history: [], coordinator: null },
+  random: { history: [], coordinator: null }
 };
 
-// Función para elegir nuevo coordinador
-function selectNewCoordinator() {
-  const userIds = Object.keys(users);
-  if (userIds.length > 0) {
-    coordinator = userIds[0]; // Seleccionar el primer usuario disponible
-    console.log('Nuevo coordinador seleccionado:', coordinator);
-    io.to(coordinator).emit('become-coordinator', chatHistory);
-    io.emit('coordinator-changed', coordinator);
-    return true;
-  }
-  return false;
-}
+const users = new Map();
 
-// Ruta principal (opcional)
-app.get('/', (req, res) => {
-  res.send('Servidor de señalización P2P funcionando');
-});
-
-// Gestión de conexiones Socket.io
 io.on('connection', (socket) => {
-  console.log('Nuevo cliente conectado:', socket.id);
-
-  // Registrar el usuario
-  users[socket.id] = {
-    id: socket.id,
-    socket: socket
-  };
+  console.log('New connection:', socket.id);
   
-  // Enviar su ID al cliente recién conectado
+  // Set initial user data
+  users.set(socket.id, { channels: new Set() });
+
+  // Send ID to client
   socket.emit('Id', socket.id);
-  
-  // Si es el primer usuario, hacerlo coordinador
-  if (!coordinator) {
-    coordinator = socket.id;
-    socket.emit('become-coordinator', chatHistory);
-    console.log('Primer coordinador seleccionado:', coordinator);
-  } else {
-    // Solicitar historial al coordinador actual
-    io.to(coordinator).emit('request-history', socket.id);
-  }
-  
-  // Informar al cliente de todos los usuarios existentes
-  socket.emit('all-users', Object.keys(users).filter(id => id !== socket.id));
-  socket.emit('coordinator-info', coordinator);
-  
-  // Informar a los demás sobre el nuevo usuario
-  socket.broadcast.emit('user-joined', {
-    signal: null,
-    callerID: socket.id
+
+  // Channel handling
+  socket.on('joinChannel', (channelName) => {
+    if (!channels[channelName]) return;
+
+    // Leave previous channels
+    users.get(socket.id)?.channels.forEach(ch => {
+      socket.leave(ch);
+    });
+    
+    // Join new channel
+    users.set(socket.id, { channels: new Set([channelName]) });
+    socket.join(channelName);
+
+    // Assign coordinator if needed
+    if (!channels[channelName].coordinator) {
+      channels[channelName].coordinator = socket.id;
+      socket.emit('coordinator-status', true);
+    }
+
+    // Send channel history
+    socket.emit('history', channels[channelName].history);
   });
 
-  // Manejar señales WebRTC
-  socket.on('sendSignal', payload => {
-    if (users[payload.userToSignal]) {
-      io.to(payload.userToSignal).emit('user-joined', {
-        signal: payload.signal,
-        callerID: payload.callerID
-      });
-    } else {
-      socket.emit('user-unavailable', payload.userToSignal);
+  // Message handling
+  socket.on('message', ({ message, channel, file }) => {
+    if (file) {
+      // Handle file logic here
+      message += ` [File: ${file.name}]`;
     }
+    
+    channels[channel].history.push(message);
+    if (channels[channel].history.length > 100) {
+      channels[channel].history.shift();
+    }
+    
+    io.to(channel).emit('new-message', message);
   });
 
-  // Manejar señales de retorno WebRTC
-  socket.on('returnSignal', payload => {
-    if (users[payload.callerID]) {
-      io.to(payload.callerID).emit('receivingReturnSignal', {
-        signal: payload.signal,
-        id: socket.id
-      });
-    }
+  // WebRTC signaling
+  socket.on('sendSignal', ({ userToSignal, callerID, signal }) => {
+    io.to(userToSignal).emit('user-joined', { signal, callerID });
   });
 
-  // El coordinador envía el historial a un nuevo usuario
-  socket.on('send-history-to-user', ({ targetId, history }) => {
-    if (socket.id === coordinator && users[targetId]) {
-      io.to(targetId).emit('receive-history', history);
-    }
+  socket.on('returnSignal', ({ signal, callerID }) => {
+    io.to(callerID).emit('receivingReturnSignal', { signal, id: socket.id });
   });
 
-  // Manejar mensajes por canal
-  socket.on('channel-message', ({ channel, message, sender, timestamp }) => {
-    // Validar canal
-    if (!['general', 'tecnico', 'soporte'].includes(channel)) {
-      return;
-    }
-    
-    const messageObj = {
-      sender,
-      message,
-      timestamp,
-      type: 'text'
-    };
-    
-    // Enviar a todos
-    socket.broadcast.emit('channel-message', { channel, messageObj });
-    
-    // Actualizar historial (solo el coordinador lo guarda)
-    if (coordinator === socket.id) {
-      chatHistory[channel].push(messageObj);
-      
-      // Mantener historial a un tamaño razonable
-      if (chatHistory[channel].length > 200) {
-        chatHistory[channel].shift();
-      }
-    }
-  });
-
-  // Manejar archivos por canal
-  socket.on('channel-file', ({ channel, file, filename, fileType, sender, timestamp }) => {
-    // Validar canal y tamaño del archivo
-    if (!['general', 'tecnico', 'soporte'].includes(channel) || file.length > 2 * 1024 * 1024) {
-      return;
-    }
-    
-    const fileObj = {
-      sender,
-      filename,
-      fileType,
-      file, // Buffer o Base64
-      timestamp,
-      type: 'file'
-    };
-    
-    // Enviar a todos
-    socket.broadcast.emit('channel-file', { channel, fileObj });
-    
-    // Actualizar historial (solo el coordinador lo guarda)
-    if (coordinator === socket.id) {
-      chatHistory[channel].push({
-        sender,
-        filename,
-        fileType,
-        file,
-        timestamp,
-        type: 'file'
-      });
-      
-      // Mantener historial a un tamaño razonable
-      if (chatHistory[channel].length > 100) {
-        chatHistory[channel].shift();
-      }
-    }
-  });
-
-  // Manejar desconexiones
+  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log('Cliente desconectado:', socket.id);
+    users.delete(socket.id);
     
-    // Si era el coordinador, elegir uno nuevo
-    if (socket.id === coordinator) {
-      const selected = selectNewCoordinator();
-      if (!selected) {
-        coordinator = null;
-        console.log('No hay usuarios disponibles para ser coordinador');
+    // Check and reassign coordinators
+    Object.entries(channels).forEach(([name, channel]) => {
+      if (channel.coordinator === socket.id) {
+        const participants = io.sockets.adapter.rooms.get(name) || new Set();
+        channel.coordinator = participants.size > 0 ? [...participants][0] : null;
+        if (channel.coordinator) {
+          io.to(channel.coordinator).emit('coordinator-status', true);
+        }
       }
-    }
-    
-    // Eliminar usuario
-    delete users[socket.id];
-    
-    // Notificar a otros usuarios
-    io.emit('user-disconnected', socket.id);
+    });
   });
 });
 
-// Determinar el puerto
 const PORT = process.env.PORT || 5000;
-
-// Iniciar el servidor
 server.listen(PORT, () => {
-  console.log(`Servidor escuchando en el puerto ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
