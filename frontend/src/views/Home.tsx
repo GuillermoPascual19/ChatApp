@@ -70,7 +70,7 @@ const Home = () => {
     // Manejar información del coordinador
     socket.on('coordinator-info', (id) => {
       setCoordinatorID(id);
-      setConnectionStatus(prev => {
+      setConnectionStatus(() => {
         if (id === myID) {
           return `Conectado - Eres el coordinador`;
         } else {
@@ -541,6 +541,14 @@ const Home = () => {
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 className="hidden"
+              />
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Escribe un mensaje..."
+                className="flex-1 border rounded px-3 py-2"
               />
             </div>
           </div>
