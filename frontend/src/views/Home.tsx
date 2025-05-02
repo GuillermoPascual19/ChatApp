@@ -1,471 +1,354 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, Loader2 } from 'lucide-react';
 
 interface Message {
-    from: string;
-    body: string;
-    timestamp: number;
-    isHistory?: boolean;
-    isFile?: boolean;
-    fileData?: string;
-    fileName?: string;
+  id: string;
+  sender: string;
+  content: string;
+  timestamp: number;
+  channel: string;
+  isFile?: boolean;
+  fileName?: string;
 }
 
-interface Peer {
-    id: string;
-    isCoordinator: boolean;
-}
-
-interface ChannelInfo {
-    peers: Peer[];
-    coordinator: string | null;
-    history: Message[];
+interface User {
+  id: string;
+  isCoordinator?: boolean;
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
 const Home = () => {
-    const [message, setMessage] = useState('');
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [peers, setPeers] = useState<Peer[]>([]);
-    const [myId, setMyId] = useState('');
-    const [isCoordinator, setIsCoordinator] = useState(false);
-    const [currentChannel, setCurrentChannel] = useState('general');
-    const socketRef = useRef<Socket | null>(null);
-    const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
-    const dataChannels = useRef<Record<string, RTCDataChannel>>({});
-    const coordinatorId = useRef<string | null>(null);
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<Record<string, Message[]>>({
+    general: [],
+    random: [],
+    help: []
+  });
+  const [currentChannel, setCurrentChannel] = useState('general');
+  const [users, setUsers] = useState<User[]>([]);
+  const [isCoordinator, setIsCoordinator] = useState(false);
+  const [myId, setMyId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const socketRef = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Configurar conexión WebRTC con otro peer
-    const setupPeerConnection = useCallback((peerId: string) => {
-        if (peerConnections.current[peerId] || peerId === myId) return;
+  // Scroll al final de los mensajes
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-        const pc = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        });
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages[currentChannel]]);
 
-        peerConnections.current[peerId] = pc;
+  useEffect(() => {
+    setIsLoading(true);
+    setConnectionStatus('connecting');
+    
+    const socket = io('https://chatapp-87po.onrender.com', {
+      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+    socketRef.current = socket;
 
-        pc.onicecandidate = (event) => {
-            if (event.candidate && socketRef.current) {
-                socketRef.current.emit('signal', {
-                    to: peerId,
-                    data: { type: 'candidate', candidate: event.candidate }
-                });
-            }
-        };
-
-        pc.onconnectionstatechange = () => {
-            console.log(`Connection state with ${peerId}:`, pc.connectionState);
-            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-                cleanupPeerConnection(peerId);
-            }
-        };
-
-        // El peer con ID más bajo crea el data channel
-        if (myId < peerId) {
-            const dc = pc.createDataChannel('chat');
-            setupDataChannel(peerId, dc);
-        } else {
-            pc.ondatachannel = (event) => {
-                setupDataChannel(peerId, event.channel);
-            };
+    socket.on('connect', () => {
+      setConnectionStatus('connected');
+      setMyId(socket.id || '');
+      socket.emit('join-channel', currentChannel, (response: any) => {
+        if (response.status === 'success') {
+          setIsCoordinator(response.isCoordinator);
+          setMessages(prev => ({
+            ...prev,
+            [currentChannel]: response.messages || []
+          }));
+          setUsers(response.users.map((id: string) => ({
+            id,
+            isCoordinator: id === response.coordinator
+          })));
         }
+        setIsLoading(false);
+      });
+    });
 
-        return pc;
-    }, [myId]);
+    socket.on('disconnect', () => {
+      setConnectionStatus('disconnected');
+    });
 
-    // Configurar data channel
-    const setupDataChannel = useCallback((peerId: string, dc: RTCDataChannel) => {
-        dataChannels.current[peerId] = dc;
+    socket.on('connect_error', () => {
+      setConnectionStatus('error');
+    });
 
-        dc.onopen = () => {
-            console.log(`Data channel with ${peerId} opened`);
-            // Si soy coordinador y es un nuevo peer, enviar historial
-            if (isCoordinator && !messages.some(m => m.isHistory)) {
-                dc.send(JSON.stringify({
-                    type: 'history',
-                    data: messages
-                }));
-            }
-        };
+    socket.on('new-message', (newMessage: Message) => {
+      if (newMessage.channel === currentChannel) {
+        setMessages(prev => ({
+          ...prev,
+          [currentChannel]: [...prev[currentChannel], newMessage]
+        }));
+      }
+    });
 
-        dc.onclose = () => {
-            console.log(`Data channel with ${peerId} closed`);
-            cleanupPeerConnection(peerId);
-        };
+    socket.on('user-joined', (data: { userId: string; users: string[] }) => {
+      setUsers(data.users.map(id => ({
+        id,
+        isCoordinator: id === getChannelCoordinator()
+      })));
+    });
 
-        dc.onerror = (error) => {
-            console.error(`Data channel error with ${peerId}:`, error);
-            cleanupPeerConnection(peerId);
-        };
+    socket.on('user-left', (data: { userId: string; users: string[] }) => {
+      setUsers(data.users.map(id => ({
+        id,
+        isCoordinator: id === getChannelCoordinator()
+      })));
+    });
 
-        dc.onmessage = (event) => {
-            try {
-                const msg = JSON.parse(event.data);
-                handleReceivedMessage(peerId, msg);
-            } catch (error) {
-                console.error('Error parsing message:', error);
-            }
-        };
-    }, [isCoordinator, messages]);
+    socket.on('role-update', ({ isCoordinator: coordinator }: { isCoordinator: boolean }) => {
+      setIsCoordinator(coordinator);
+    });
 
-    // Limpiar conexión con un peer
-    const cleanupPeerConnection = useCallback((peerId: string) => {
-        if (peerConnections.current[peerId]) {
-            peerConnections.current[peerId].close();
-            delete peerConnections.current[peerId];
-        }
-        if (dataChannels.current[peerId]) {
-            delete dataChannels.current[peerId];
-        }
-    }, []);
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentChannel]);
 
-    // Manejar mensajes recibidos
-    const handleReceivedMessage = useCallback((from: string, msg: any) => {
-        switch (msg.type) {
-            case 'message':
-                const newMsg: Message = {
-                    from,
-                    body: msg.body,
-                    timestamp: Date.now()
-                };
-                setMessages(prev => [...prev, newMsg]);
-                // Si soy coordinador, guardar el mensaje
-                if (isCoordinator && socketRef.current) {
-                    socketRef.current.emit('save-message', newMsg);
-                }
-                break;
-                
-            case 'file':
-                setMessages(prev => [...prev, {
-                    from,
-                    body: '', // Ensure 'body' is included
-                    isFile: true,
-                    fileData: msg.data,
-                    fileName: msg.fileName,
-                    timestamp: Date.now()
-                }]);
-                if (isCoordinator && socketRef.current) {
-                    socketRef.current.emit('save-message', {
-                        from,
-                        isFile: true,
-                        fileData: msg.data,
-                        fileName: msg.fileName,
-                        timestamp: Date.now()
-                    });
-                }
-                break;
-                
-            case 'history':
-                setMessages(prev => [
-                    ...msg.data.map((m: Message) => ({ ...m, isHistory: true })),
-                    ...prev.filter(m => !m.isHistory)
-                ]);
-                break;
-                
-            case 'request-history':
-                if (isCoordinator && dataChannels.current[from]?.readyState === 'open') {
-                    dataChannels.current[from].send(JSON.stringify({
-                        type: 'history',
-                        data: messages
-                    }));
-                }
-                break;
-        }
-    }, [isCoordinator, messages]);
+  const getChannelCoordinator = () => {
+    return users.find(user => user.isCoordinator)?.id || null;
+  };
 
-    // Enviar mensaje a todos los peers
-    const sendToAllPeers = useCallback((message: any) => {
-        Object.entries(dataChannels.current).forEach(([peerId, dc]) => {
-            if (dc.readyState === 'open') {
-                try {
-                    dc.send(JSON.stringify(message));
-                } catch (error) {
-                    console.error(`Error sending to ${peerId}:`, error);
-                }
-            }
-        });
-    }, []);
+  const handleSendMessage = () => {
+    if (!message.trim() || !socketRef.current) return;
 
-    // Manejar envío de mensaje
-    const handleSendMessage = useCallback(() => {
-        if (!message.trim()) return;
-
-        const newMsg = {
-            from: myId,
-            body: message,
-            timestamp: Date.now()
-        };
-
-        sendToAllPeers({
-            type: 'message',
-            body: message
-        });
-
-        setMessages(prev => [...prev, newMsg]);
-        
-        // Si soy coordinador, guardar el mensaje
-        if (isCoordinator && socketRef.current) {
-            socketRef.current.emit('save-message', newMsg);
-        }
-
+    setIsLoading(true);
+    socketRef.current.emit('send-message', message, (response: any) => {
+      if (response.status === 'success') {
         setMessage('');
-    }, [message, myId, isCoordinator, sendToAllPeers]);
+      }
+      setIsLoading(false);
+    });
+  };
 
-    // Manejar envío de archivo
-    const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = ''; // Reset input
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !socketRef.current) {
+      e.target.value = '';
+      return;
+    }
 
-        if (file.size > MAX_FILE_SIZE) {
-            alert('File size exceeds 2MB limit');
-            return;
-        }
+    if (file.size > MAX_FILE_SIZE) {
+      alert('El archivo excede el límite de 2MB');
+      e.target.value = '';
+      return;
+    }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const fileData = event.target?.result as string;
-            const fileMsg = {
-                from: myId,
-                isFile: true,
-                fileData,
-                fileName: file.name,
-                timestamp: Date.now()
-            };
+    setIsLoading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const fileData = event.target?.result as string;
+      socketRef.current?.emit('send-file', {
+        name: file.name,
+        data: fileData
+      }, () => {
+        setIsLoading(false);
+        e.target.value = '';
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
-            sendToAllPeers({
-                type: 'file',
-                data: fileData,
-                fileName: file.name
-            });
-            setMessages(prev => [...prev, { ...fileMsg, body: '' }]);
-            
-            // Si soy coordinador, guardar el archivo
-            if (isCoordinator && socketRef.current) {
-                socketRef.current.emit('save-message', fileMsg);
-            }
-        };
-        reader.readAsDataURL(file);
-    }, [myId, isCoordinator, sendToAllPeers]);
+  const changeChannel = (channel: string) => {
+    if (channel === currentChannel || isLoading) return;
+    
+    setIsLoading(true);
+    setCurrentChannel(channel);
+    socketRef.current?.emit('join-channel', channel, (response: any) => {
+      if (response.status === 'success') {
+        setIsCoordinator(response.isCoordinator);
+        setMessages(prev => ({
+          ...prev,
+          [channel]: response.messages || []
+        }));
+        setUsers(response.users.map((id: string) => ({
+          id,
+          isCoordinator: id === response.coordinator
+        })));
+      }
+      setIsLoading(false);
+    });
+  };
 
-    // Cambiar de canal
-    const handleChangeChannel = useCallback((channel: string) => {
-        if (channel === currentChannel) return;
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
-        // Limpiar conexiones anteriores
-        Object.keys(peerConnections.current).forEach(cleanupPeerConnection);
-        peerConnections.current = {};
-        dataChannels.current = {};
-
-        // Unirse al nuevo canal
-        setCurrentChannel(channel);
-        setMessages([]);
-        socketRef.current?.emit('join-channel', channel);
-    }, [currentChannel, cleanupPeerConnection]);
-
-    // Efecto para configurar Socket.io
-    useEffect(() => {
-        const socket = io('https://chatapp-87po.onrender.com', {
-            transports: ['websocket'],
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000
-        });
-        socketRef.current = socket;
-
-        socket.on('connect', () => {
-            console.log('Connected to server');
-            setMyId(socket.id || '');
-            socket.emit('join-channel', currentChannel);
-        });
-
-        socket.on('channel-info', ({ peers: peerList, coordinator, history }: ChannelInfo) => {
-            setPeers(peerList);
-            coordinatorId.current = coordinator;
-            setIsCoordinator(coordinator === socket.id);
-            
-            // Establecer conexiones con todos los peers
-            peerList.forEach(peer => {
-                if (peer.id !== socket.id) {
-                    setupPeerConnection(peer.id);
-                }
-            });
-
-            // Cargar historial si existe
-            if (history.length > 0) {
-                setMessages(history.map(msg => ({ ...msg, isHistory: true })));
-            }
-        });
-
-        socket.on('signal', ({ from, data }) => {
-            if (!peerConnections.current[from]) {
-                setupPeerConnection(from);
-            }
-
-            const pc = peerConnections.current[from];
-            if (!pc) return;
-
-            try {
-                if (data.type === 'offer') {
-                    pc.setRemoteDescription(new RTCSessionDescription(data))
-                        .then(() => pc.createAnswer())
-                        .then(answer => pc.setLocalDescription(answer))
-                        .then(() => {
-                            if (socketRef.current && pc.localDescription) {
-                                socketRef.current.emit('signal', {
-                                    to: from,
-                                    data: pc.localDescription
-                                });
-                            }
-                        })
-                        .catch(console.error);
-                } else if (data.type === 'answer') {
-                    pc.setRemoteDescription(new RTCSessionDescription(data))
-                        .catch(console.error);
-                } else if (data.type === 'candidate') {
-                    pc.addIceCandidate(new RTCIceCandidate(data.candidate))
-                        .catch(console.error);
-                }
-            } catch (error) {
-                console.error('Error processing signal:', error);
-            }
-        });
-
-        socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-        });
-
-        return () => {
-            socket.disconnect();
-            Object.values(peerConnections.current).forEach(pc => pc.close());
-        };
-    }, [currentChannel, setupPeerConnection]);
-
-    return (
-        <div className="flex h-screen bg-gray-100">
-            {/* Sidebar */}
-            <div className="w-64 border-r bg-white p-4 overflow-y-auto">
-                <h3 className="font-bold text-lg mb-4">Channels</h3>
-                <div className="space-y-2 mb-6">
-                    {['general', 'random', 'help'].map(channel => (
-                        <div
-                            key={channel}
-                            className={`p-2 rounded cursor-pointer ${
-                                currentChannel === channel ? 'bg-blue-100' : 'hover:bg-gray-100'
-                            }`}
-                            onClick={() => handleChangeChannel(channel)}
-                        >
-                            {channel}
-                        </div>
-                    ))}
-                </div>
-                <h3 className="font-bold text-lg mb-4">Connected Peers ({peers.length})</h3>
-                <ul className="space-y-2">
-                    {peers.map(peer => (
-                        <li
-                            key={peer.id}
-                            className={`p-2 rounded ${
-                                peer.isCoordinator ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-                            }`}
-                        >
-                            <div className="truncate">{peer.id}</div>
-                            {peer.isCoordinator && (
-                                <div className="text-xs text-green-600">Coordinator</div>
-                            )}
-                        </li>
-                    ))}
-                </ul>
+  return (
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r p-4 flex flex-col">
+        <h2 className="text-xl font-bold mb-4">Canales</h2>
+        <div className="space-y-2 mb-6 flex-1">
+          {['general', 'random', 'help'].map(channel => (
+            <div
+              key={channel}
+              className={`p-2 rounded cursor-pointer flex justify-between items-center ${
+                currentChannel === channel ? 'bg-blue-100' : 'hover:bg-gray-100'
+              } ${isLoading ? 'opacity-50' : ''}`}
+              onClick={() => changeChannel(channel)}
+            >
+              <span>#{channel}</span>
+              <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">
+                {messages[channel]?.length || 0}
+              </span>
             </div>
-
-            {/* Main chat area */}
-            <div className="flex-1 flex flex-col">
-                <div className="p-4 border-b">
-                    <span className="font-bold">Channel: {currentChannel}</span>
-                    <span className="font-bold ml-4">Your ID: {myId}</span>
-                    {isCoordinator && (
-                        <span className="ml-2 bg-green-500 text-white px-2 py-1 rounded text-sm">
-                            Coordinator
-                        </span>
-                    )}
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 flex justify-center">
-                    <div className="w-full max-w-2xl space-y-2">
-                        {messages.map((msg, index) => (
-                            <div
-                                key={index}
-                                className={`p-3 rounded-lg ${
-                                    msg.from === myId ? 'bg-green-50 ml-8' : 'bg-blue-50 mr-8'
-                                } shadow-sm`}
-                            >
-                                <div className="font-semibold text-sm">
-                                    {msg.from === myId ? 'You' : msg.from}
-                                    {msg.isHistory && (
-                                        <span className="text-gray-500 ml-2 text-xs">(history)</span>
-                                    )}
-                                </div>
-                                {msg.isFile ? (
-                                    <div className="mt-1">
-                                        <a
-                                            href={msg.fileData}
-                                            download={msg.fileName}
-                                            className="text-blue-500 underline"
-                                        >
-                                            Download {msg.fileName}
-                                        </a>
-                                    </div>
-                                ) : (
-                                    <div className="mt-1">{msg.body}</div>
-                                )}
-                                <div className="text-xs text-gray-500 mt-1">
-                                    {new Date(msg.timestamp).toLocaleTimeString()}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="p-4 border-t">
-                    <div className="flex items-center space-x-2 mb-2">
-                        <label className="bg-gray-200 hover:bg-gray-300 p-2 rounded cursor-pointer">
-                            <Paperclip className="inline" size={20} />
-                            <input
-                                type="file"
-                                className="hidden"
-                                onChange={handleFileUpload}
-                                accept="image/*,.pdf,.doc,.docx,.txt"
-                            />
-                        </label>
-                        <div className="text-xs text-gray-500">
-                            Max file size: 2MB
-                        </div>
-                    </div>
-                    <div className="flex">
-                        <input
-                            type="text"
-                            placeholder="Type a message..."
-                            className="flex-1 border rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                        />
-                        <button
-                            className="bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg p-2 px-4"
-                            onClick={handleSendMessage}
-                        >
-                            Send
-                        </button>
-                    </div>
-                </div>
-            </div>
+          ))}
         </div>
-    );
+
+        <div className="mt-auto">
+          <h2 className="text-xl font-bold mb-4">Usuarios ({users.length})</h2>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {users.map(user => (
+              <div
+                key={user.id}
+                className={`p-2 rounded flex items-center ${
+                  user.id === myId ? 'bg-green-50' : 'bg-gray-50'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  user.id === myId ? 'bg-green-500' :
+                  user.isCoordinator ? 'bg-blue-500' : 'bg-gray-400'
+                }`}></div>
+                <div className="truncate flex-1">
+                  {user.id === myId ? 'Tú' : user.id}
+                </div>
+                {user.isCoordinator && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">
+                    Coord
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className={`mt-2 text-xs ${
+            connectionStatus === 'connected' ? 'text-green-500' :
+            connectionStatus === 'error' ? 'text-red-500' : 'text-yellow-500'
+          }`}>
+            {connectionStatus === 'connected' ? 'Conectado' :
+             connectionStatus === 'error' ? 'Error de conexión' : 'Conectando...'}
+            {connectionStatus === 'connected' && (
+              <span className="ml-1">• {myId}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Chat area */}
+      <div className="flex-1 flex flex-col">
+        <div className="p-4 border-b flex justify-between items-center bg-white">
+          <h1 className="text-xl font-bold">#{currentChannel}</h1>
+          <div className="flex items-center">
+            {isCoordinator && (
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
+                Coordinador
+              </span>
+            )}
+            {isLoading && <Loader2 className="animate-spin h-5 w-5 text-gray-500" />}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+          {messages[currentChannel]?.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              No hay mensajes en este canal. ¡Envía el primero!
+            </div>
+          ) : (
+            messages[currentChannel]?.map(msg => (
+              <div
+                key={msg.id}
+                className={`mb-4 p-3 rounded-lg max-w-[80%] ${
+                  msg.sender === myId ? 'bg-blue-100 ml-auto' : 'bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center">
+                    <div className={`w-2 h-2 rounded-full mr-2 ${
+                      msg.sender === myId ? 'bg-blue-500' : 'bg-gray-500'
+                    }`}></div>
+                    <div className="font-semibold text-sm">
+                      {msg.sender === myId ? 'Tú' : msg.sender}
+                      {users.find(u => u.id === msg.sender)?.isCoordinator && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded ml-1">
+                          Coord
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatTime(msg.timestamp)}
+                  </div>
+                </div>
+                
+                {msg.isFile ? (
+                  <a
+                    href={msg.content}
+                    download={msg.fileName}
+                    className="mt-1 inline-flex items-center text-blue-600 hover:underline"
+                  >
+                    <Paperclip className="mr-1" size={16} />
+                    {msg.fileName}
+                  </a>
+                ) : (
+                  <div className="mt-1 whitespace-pre-wrap">{msg.content}</div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="p-4 border-t bg-white">
+          <div className="flex items-center mb-1">
+            <label className={`p-2 rounded-full mr-2 cursor-pointer ${
+              isLoading ? 'text-gray-400' : 'text-gray-600 hover:bg-gray-200'
+            }`}>
+              <Paperclip size={20} />
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                disabled={isLoading}
+              />
+            </label>
+            <input
+              type="text"
+              className={`flex-1 border rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                isLoading ? 'bg-gray-100' : ''
+              }`}
+              placeholder="Escribe un mensaje..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
+              disabled={isLoading}
+            />
+            <button
+              className={`bg-blue-500 text-white rounded-r-lg px-4 py-2 ${
+                isLoading || !message.trim() ? 'opacity-50' : 'hover:bg-blue-600'
+              }`}
+              onClick={handleSendMessage}
+              disabled={isLoading || !message.trim()}
+            >
+              {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Enviar'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Límite de archivos: 2MB • Presiona Enter para enviar
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Home;

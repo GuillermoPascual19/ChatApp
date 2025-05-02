@@ -1,118 +1,159 @@
-import express from 'express';
-import cors from 'cors';
-import { Server as SocketServer } from 'socket.io';
-import http from 'http';
+const express = require('express');
+const cors = require('cors');
+const { Server } = require('socket.io');
+const http = require('http');
 
 const app = express();
 const server = http.createServer(app);
 app.use(cors());
 
-const io = new SocketServer(server, {
-    cors: {
-        origin: ['http://localhost:5173', "https://chat-app-drab-delta-83.vercel.app"],
-        methods: ['GET', 'POST'],
-    }
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:5173', "https://chat-app-drab-delta-83.vercel.app"],
+    methods: ['GET', 'POST'],
+  }
 });
 
-// Estructura para almacenar información por canal
+// Almacenamiento por canal
 const channels = {};
 
-const getNewCoordinator = (channel) => {
-    const peerIds = Object.keys(channels[channel]?.peers || {});
-    if (peerIds.length === 0) return null;
-    return peerIds.sort()[0];
-};
-
-const updateCoordinator = (channel) => {
-    const newCoordinatorId = getNewCoordinator(channel);
-    
-    if (!channels[channel]) return;
-    
-    // Actualizar estado de coordinador
-    Object.keys(channels[channel].peers).forEach(id => {
-        channels[channel].peers[id].isCoordinator = id === newCoordinatorId;
-    });
-
-    // Notificar a los clientes del canal
-    io.to(channel).emit('peer-list', {
-        peers: Object.values(channels[channel].peers),
-        coordinator: newCoordinatorId
-    });
+const getChannel = (channel) => {
+  if (!channels[channel]) {
+    channels[channel] = {
+      coordinator: null,
+      messages: [],
+      users: new Set()
+    };
+  }
+  return channels[channel];
 };
 
 io.on('connection', (socket) => {
-    console.log('New client connected', socket.id);
+  console.log('New connection:', socket.id);
+  let currentChannel = '';
+
+  const handleJoinChannel = (channel, callback) => {
+    // Salir del canal anterior
+    if (currentChannel) {
+      socket.leave(currentChannel);
+      const prevChannel = getChannel(currentChannel);
+      prevChannel.users.delete(socket.id);
+      
+      // Si era el coordinador, asignar nuevo coordinador
+      if (prevChannel.coordinator === socket.id) {
+        const usersArray = Array.from(prevChannel.users);
+        prevChannel.coordinator = usersArray[0] || null;
+        if (usersArray[0]) {
+          io.to(usersArray[0]).emit('role-update', { isCoordinator: true });
+        }
+      }
+    }
+
+    // Unirse al nuevo canal
+    currentChannel = channel;
+    socket.join(channel);
+    const channelData = getChannel(channel);
+    channelData.users.add(socket.id);
+
+    // Asignar coordinador si no hay
+    if (!channelData.coordinator) {
+      channelData.coordinator = socket.id;
+    }
+
+    // Notificar al usuario
+    callback({
+      status: 'success',
+      channel,
+      isCoordinator: channelData.coordinator === socket.id,
+      messages: channelData.messages,
+      users: Array.from(channelData.users)
+    });
+
+    // Notificar a otros usuarios
+    socket.to(channel).emit('user-joined', {
+      userId: socket.id,
+      users: Array.from(channelData.users)
+    });
+  };
+
+  socket.on('join-channel', handleJoinChannel);
+
+  socket.on('send-message', (message, callback) => {
+    if (!currentChannel) {
+      callback({ status: 'error', message: 'No channel selected' });
+      return;
+    }
+
+    const channelData = getChannel(currentChannel);
+    const messageData = {
+      id: `${Date.now()}-${socket.id}`,
+      sender: socket.id,
+      content: message,
+      timestamp: Date.now(),
+      channel: currentChannel
+    };
+
+    // Guardar mensaje si es el coordinador
+    if (channelData.coordinator === socket.id) {
+      channelData.messages.push(messageData);
+    }
+
+    // Transmitir a todos en el canal
+    io.to(currentChannel).emit('new-message', messageData);
+    callback({ status: 'success', message: messageData });
+  });
+
+  socket.on('send-file', (fileData, callback) => {
+    if (!currentChannel) {
+      callback({ status: 'error', message: 'No channel selected' });
+      return;
+    }
+
+    const channelData = getChannel(currentChannel);
+    const messageData = {
+      id: `${Date.now()}-${socket.id}`,
+      sender: socket.id,
+      content: fileData.data,
+      timestamp: Date.now(),
+      channel: currentChannel,
+      isFile: true,
+      fileName: fileData.name
+    };
+
+    // Guardar archivo si es el coordinador
+    if (channelData.coordinator === socket.id) {
+      channelData.messages.push(messageData);
+    }
+
+    // Transmitir a todos en el canal
+    io.to(currentChannel).emit('new-message', messageData);
+    callback({ status: 'success', message: messageData });
+  });
+
+  socket.on('disconnect', () => {
+    if (!currentChannel) return;
     
-    let currentChannel = '';
+    const channelData = getChannel(currentChannel);
+    channelData.users.delete(socket.id);
 
-    socket.on('join-channel', (channel) => {
-        // Salir del canal anterior si existe
-        if (currentChannel) {
-            socket.leave(currentChannel);
-            delete channels[currentChannel].peers[socket.id];
-            if (Object.keys(channels[currentChannel].peers).length === 0) {
-                delete channels[currentChannel];
-            } else {
-                updateCoordinator(currentChannel);
-            }
-        }
-        
-        // Unirse al nuevo canal
-        currentChannel = channel;
-        socket.join(channel);
-        
-        // Inicializar canal si no existe
-        if (!channels[channel]) {
-            channels[channel] = {
-                peers: {},
-                messageHistory: []
-            };
-        }
-        
-        // Registrar nuevo peer
-        channels[channel].peers[socket.id] = {
-            id: socket.id,
-            isCoordinator: false
-        };
-        
-        // Actualizar coordinador
-        updateCoordinator(channel);
-        
-        // Enviar información inicial al cliente
-        socket.emit('channel-info', {
-            peers: Object.values(channels[channel].peers),
-            coordinator: getNewCoordinator(channel),
-            history: channels[channel].messageHistory
-        });
-    });
+    // Si era el coordinador, asignar nuevo coordinador
+    if (channelData.coordinator === socket.id) {
+      const usersArray = Array.from(channelData.users);
+      channelData.coordinator = usersArray[0] || null;
+      if (usersArray[0]) {
+        io.to(usersArray[0]).emit('role-update', { isCoordinator: true });
+      }
+    }
 
-    // Señalización WebRTC
-    socket.on('signal', ({ to, data }) => {
-        if (channels[currentChannel]?.peers[to]) {
-            io.to(to).emit('signal', { from: socket.id, data });
-        }
+    // Notificar a otros usuarios
+    io.to(currentChannel).emit('user-left', {
+      userId: socket.id,
+      users: Array.from(channelData.users)
     });
-
-    // Guardar mensaje en el historial (solo si viene del coordinador)
-    socket.on('save-message', (message) => {
-        if (channels[currentChannel]?.peers[socket.id]?.isCoordinator) {
-            channels[currentChannel].messageHistory.push(message);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        if (currentChannel && channels[currentChannel]) {
-            delete channels[currentChannel].peers[socket.id];
-            if (Object.keys(channels[currentChannel].peers).length === 0) {
-                delete channels[currentChannel];
-            } else {
-                updateCoordinator(currentChannel);
-            }
-        }
-    });
+  });
 });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-    console.log('Server listening on port', PORT);
+  console.log(`Server running on port ${PORT}`);
 });
