@@ -5,11 +5,25 @@ import { Server as SocketServer } from 'socket.io';
 import http from 'http';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
+import fs from 'fs';
 
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const UPLOAD_DIR = path.join(__dirname, 'temp_uploads');
+
+// Crear directorio si no existe
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
 
 const io = new SocketServer(server, {
   cors: {
@@ -100,7 +114,6 @@ io.on('connection', (socket) => {
   });
 });
 //Nuevo codigoooooo
-const UPLOAD_DIR = path.join(__dirname, 'temp_uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
 // Nueva ruta para descargas
