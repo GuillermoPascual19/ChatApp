@@ -3,7 +3,7 @@
 
 #Dependencies
 node_modules/
-
+temp_uploads/
 # Logs
 logs
 *.log
