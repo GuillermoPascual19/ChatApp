@@ -1,3 +1,4 @@
+
 // index.js (Backend)
 import express from 'express';
 import cors from 'cors';
@@ -27,11 +28,29 @@ const users = new Map();
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
   
-  // Set initial user data
-  users.set(socket.id, { channels: new Set() });
+  // Set initial user data - will be updated when username is set
+  users.set(socket.id, { 
+    channels: new Set(),
+    username: `Usuario_${socket.id.substr(0, 4)}` // Default username
+  });
 
   // Send ID to client
   socket.emit('Id', socket.id);
+
+  // Handle username setting
+  socket.on('setUsername', (username) => {
+    if (username && username.trim()) {
+      const oldUsername = users.get(socket.id)?.username;
+      users.get(socket.id).username = username;
+      
+      // Notify channels of username change
+      users.get(socket.id)?.channels.forEach(channelName => {
+        const systemMsg = `[System] ${oldUsername} ahora es ${username}`;
+        channels[channelName].history.push(systemMsg);
+        io.to(channelName).emit('new-message', systemMsg);
+      });
+    }
+  });
 
   // Channel handling
   socket.on('joinChannel', (channelName) => {
@@ -43,8 +62,14 @@ io.on('connection', (socket) => {
     });
     
     // Join new channel
-    users.set(socket.id, { channels: new Set([channelName]) });
+    const username = users.get(socket.id)?.username;
+    users.get(socket.id).channels = new Set([channelName]);
     socket.join(channelName);
+
+    // Inform channel about new user
+    const joinMsg = `[System] ${username} se ha unido a #${channelName}`;
+    channels[channelName].history.push(joinMsg);
+    io.to(channelName).emit('new-message', joinMsg);
 
     // Assign coordinator if needed
     if (!channels[channelName].coordinator) {
@@ -58,17 +83,34 @@ io.on('connection', (socket) => {
 
   // Message handling
   socket.on('message', ({ message, channel, file }) => {
+    const username = users.get(socket.id)?.username;
+    let formattedMessage = message;
+    
+    // We need to handle file specifically
     if (file) {
-      // Handle file logic here
-      message += ` [File: ${file.name}]`;
+      const fileData = {
+        data: file,
+        sender: username,
+        timestamp: new Date().toISOString(),
+        channel: channel
+      };
+      
+      // Store file info in history
+      const fileMessage = `[${channel}] [${username}]: ${message} [Archivo adjunto]`;
+      channels[channel].history.push(fileMessage);
+      
+      // Send file to all clients in the channel
+      io.to(channel).emit('new-file', fileData);
+      io.to(channel).emit('new-message', fileMessage);
+    } else {
+      // Regular text message
+      channels[channel].history.push(formattedMessage);
+      if (channels[channel].history.length > 100) {
+        channels[channel].history.shift();
+      }
+      
+      io.to(channel).emit('new-message', formattedMessage);
     }
-    
-    channels[channel].history.push(message);
-    if (channels[channel].history.length > 100) {
-      channels[channel].history.shift();
-    }
-    
-    io.to(channel).emit('new-message', message);
   });
 
   // WebRTC signaling
@@ -82,6 +124,18 @@ io.on('connection', (socket) => {
 
   // Handle disconnection
   socket.on('disconnect', () => {
+    const username = users.get(socket.id)?.username;
+    const userChannels = [...(users.get(socket.id)?.channels || [])];
+    
+    // Notify about user disconnection
+    userChannels.forEach(channelName => {
+      if (channels[channelName]) {
+        const leaveMsg = `[System] ${username} se ha desconectado`;
+        channels[channelName].history.push(leaveMsg);
+        io.to(channelName).emit('new-message', leaveMsg);
+      }
+    });
+    
     users.delete(socket.id);
     
     // Check and reassign coordinators
