@@ -10,7 +10,7 @@ interface PeerRef {
 
 const Home = () => {
   const [message, setMessage] = useState('');
-  const [chat, setChat] = useState<string[]>([]);
+  const [chat, setChat] = useState<{ text: string; file?: { name: string; type?: string; data: string; size: number } | null; timestamp?: string }[]>([]);
   const [myID, setMyID] = useState('');
   const [currentChannel, setCurrentChannel] = useState('general');
   const [file, setFile] = useState<File | null>(null);
@@ -53,7 +53,7 @@ const Home = () => {
       file: file ? await toBase64(file) : null
     });
 
-    setChat(prev => [...prev, `[Me]: ${message}`]);
+    setChat(prev => [...prev, { text: `[Me]: ${message}` }]);
     setMessage('');
     setFile(null);
   };
@@ -67,6 +67,21 @@ const Home = () => {
       alert('File size exceeds 2MB limit');
     }
   };
+
+  function toBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          resolve(reader.result.toString());
+        } else {
+          reject(new Error('File could not be converted to Base64'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Error reading file'));
+      reader.readAsDataURL(file);
+    });
+  }
 
   // Server Communication
   useEffect(() => {
@@ -96,6 +111,7 @@ const Home = () => {
     return () => {
       socket.current.disconnect();
     };
+
   }, []);
 
   return (
@@ -117,12 +133,41 @@ const Home = () => {
         ))}
       </div>
 
+
+        
+        
+
+
+
+
+
+
       <div className="flex-1 overflow-y-auto mb-4 bg-white rounded p-4">
         {chat.map((msg, i) => (
-          <div key={i} className="mb-2 p-2 bg-gray-50 rounded">{msg}</div>
+          <div key={i} className="mb-2 p-2 bg-gray-50 rounded">{msg.text}</div>
         ))}
       </div>
+{/* sd */}
+<div className="flex-1 overflow-y-auto mb-4 bg-white rounded p-4">
+    {chat.map((msg, i) => (
+      <div key={i} className="mb-2 p-2 bg-gray-50 rounded">
+        <div>{typeof msg === 'string' ? msg : msg.text}</div>
+        {msg.file && (
+          <a 
+            href={msg.file.data} 
+            download={msg.file.name}
+            className="text-blue-500 flex items-center mt-1"
+          >
+            📎 {msg.file.name} 
+            <span className="text-xs ml-2">({(msg.file.size/1024).toFixed(1)}KB)</span>
+          </a>
+        )}
+      </div>
+    ))}
+  </div>
 
+
+{/* df */}
       <div className="flex gap-2">
         <input
           type="text"
@@ -154,20 +199,4 @@ const Home = () => {
   );
 };
 
-function toBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        resolve(reader.result.toString());
-      } else {
-        reject(new Error('File could not be converted to Base64'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Error reading file'));
-    reader.readAsDataURL(file);
-  });
-}
-
 export default Home;
-
