@@ -3,27 +3,10 @@ import express from 'express';
 import cors from 'cors';
 import { Server as SocketServer } from 'socket.io';
 import http from 'http';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-import fs from 'fs';
 
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const UPLOAD_DIR = path.join(__dirname, 'temp_uploads');
-
-// Crear directorio si no existe
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
 
 const io = new SocketServer(server, {
   cors: {
@@ -113,79 +96,6 @@ io.on('connection', (socket) => {
     });
   });
 });
-//Nuevo codigoooooo
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
-
-// Nueva ruta para descargas
-app.get('/download/:fileId', (req, res) => {
-  const filePath = path.join(UPLOAD_DIR, req.params.fileId);
-  if (fs.existsSync(filePath)) {
-    res.download(filePath);
-  } else {
-    res.status(404).send('File not found');
-  }
-});
-
-// Modificar el handler de mensajes
-socket.on('message', async ({ message, channel, file }) => {
-  let fileEntry = null;
-  
-  if (file && file.data) {
-    // Validar tamaño
-    if (file.size > 2 * 1024 * 1024) {
-      return socket.emit('error', 'File size exceeds 2MB limit');
-    }
-    
-    // Guardar archivo temporal
-    const fileId = uuidv4();
-    const buffer = Buffer.from(file.data.split(',')[1], 'base64');
-    fs.writeFileSync(path.join(UPLOAD_DIR, fileId), buffer);
-    
-    fileEntry = {
-      name: file.name,
-      type: file.type,
-      id: fileId,
-      size: file.size
-    };
-  }
-
-  const fullMessage = {
-    text: message,
-    file: fileEntry,
-    timestamp: new Date().toISOString()
-  };
-
-  // Actualizar historial
-  channels[channel].history.push(fullMessage);
-  if (channels[channel].history.length > 100) {
-    channels[channel].history.shift();
-  }
-
-  // Enviar mensaje con enlace de descarga
-  io.to(channel).emit('new-message', {
-    ...fullMessage,
-    file: fileEntry ? {
-      ...fileEntry,
-      url: `/download/${fileEntry.id}`
-    } : null
-  });
-});
-
-// Limpiar archivos temporales cada hora
-setInterval(() => {
-  fs.readdir(UPLOAD_DIR, (err, files) => {
-    files.forEach(file => {
-      const filePath = path.join(UPLOAD_DIR, file);
-      const stat = fs.statSync(filePath);
-      if (stat.mtime < Date.now() - 3600000) { // 1 hora
-        fs.unlinkSync(filePath);
-      }
-    });
-  });
-}, 3600000);
-
-
-
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
