@@ -148,7 +148,7 @@ const Home = () => {
     });
 
     socket.current.on('new-message', (message) => {
-      setChat(prev => [...prev.filter(msg => !msg.includes(message)), message]);
+      setChat(prev => [...prev, message]);
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
