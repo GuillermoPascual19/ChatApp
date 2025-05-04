@@ -21,34 +21,35 @@
   box-sizing: border-box;
 }
 
-body {
+/* Estructura base */
+html, body {
+  height: 100%;
   margin: 0;
+  padding: 0;
+}
+
+body {
   min-width: 320px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
   width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  margin: 0; /* Eliminado el auto margin */
+  padding: 0; /* Eliminado el padding */
 }
 
-/* Layout específico para el chat */
+/* Layout de dos columnas para el chat */
 .chat-container {
   display: flex;
-  flex-direction: row;
-  height: 100%;
   width: 100%;
+  height: 100%;
 }
 
 /* Columna izquierda para los inputs */
 .chat-input-column {
   width: 30%;
+  height: 100%;
   padding: 1rem;
   background-color: #1a1a1a;
   border-right: 1px solid #333;
@@ -56,13 +57,20 @@ body {
   flex-direction: column;
 }
 
-/* Columna derecha para los mensajes */
+/* Columna derecha para el log del chat */
 .chat-messages-column {
   width: 70%;
+  height: 100%;
   padding: 1rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+
+/* Título de cada columna */
+.column-title {
+  margin-bottom: 1rem;
+  text-align: left;
 }
 
 /* Estilos para los mensajes del chat */
@@ -86,10 +94,10 @@ body {
 
 /* Formulario de entrada */
 .chat-input-form {
-  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .chat-textarea {
@@ -144,27 +152,27 @@ a:hover {
   color: #535bf2;
 }
 
-/* Tipografía */
-h1 {
-  font-size: 2em;
-  line-height: 1.1;
-  margin-bottom: 1rem;
-}
-
-/* Para dispositivos móviles, cambiamos a columnas */
+/* Diseño responsive */
 @media (max-width: 768px) {
   .chat-container {
-    flex-direction: column-reverse;
+    flex-direction: column;
   }
   
   .chat-input-column,
   .chat-messages-column {
     width: 100%;
+    height: auto;
   }
   
   .chat-input-column {
+    order: 2; /* Colocamos los inputs abajo en móvil */
     border-right: none;
     border-top: 1px solid #333;
+  }
+  
+  .chat-messages-column {
+    order: 1; /* Colocamos los mensajes arriba en móvil */
+    height: 70vh; /* Altura fija en móvil */
   }
 }
 
