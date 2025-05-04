@@ -168,140 +168,164 @@ const Home = () => {
   }, [myID]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 p-4">
-      <header className="mb-8"> {/* Aumentado de mb-6 a mb-8 */}
-        <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
-      </header>
-      
-      {/* Username Modal */}
-      {showUsernameModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Elige un nombre de usuario</h2>
-            <input
-              type="text"
-              value={tempUsername}
-              onChange={(e) => setTempUsername(e.target.value)}
-              placeholder="Tu nombre..."
-              className="w-full border border-gray-300 rounded-lg p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSetUsername}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200"
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar izquierda - Canales y Mensajes */}
+      <div className="w-3/4 flex flex-col p-4 border-r border-gray-200">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
+        </header>
+        
+        {/* Channel Selector */}
+        <div className="flex gap-4 mb-6">
+          {['general', 'general2', 'random'].map(channel => (
+            <button 
+              key={channel}
+              onClick={() => {
+                setCurrentChannel(channel);
+                socket.current.emit('joinChannel', channel);
+              }}
+              className={`px-4 py-2 rounded-lg transition duration-200 ${
+                currentChannel === channel 
+                  ? 'bg-blue-500 text-white shadow-md' 
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
             >
-              Continuar
+              #{channel}
             </button>
-          </div>
+          ))}
         </div>
-      )}
   
-      {/* Channel Selector - Añadido mt-6 para más espacio arriba */}
-      <div className="flex gap-4 mb-8 mt-6"> {/* Cambiado gap-3 a gap-4 y mb-6 a mb-8 */}
-        {['general', 'general2', 'random'].map(channel => (
-          <button 
-            key={channel}
-            onClick={() => {
-              setCurrentChannel(channel);
-              socket.current.emit('joinChannel', channel);
-            }}
-            className={`px-4 py-2 rounded-lg transition duration-200 ${
-              currentChannel === channel 
-                ? 'bg-blue-500 text-white shadow-md' 
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            {channel}
-          </button>
-        ))}
-      </div>
-  
-      {/* Resto del código permanece igual */}
-      <div className="flex-1 overflow-y-auto mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-        {chat.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            No hay mensajes en este canal. ¡Envía el primero!
-          </div>
-        ) : (
-          chat.map((msg, i) => (
-            <div 
-              key={i} 
-              className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100 last:mb-0"
-            >
-              {msg}
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          {chat.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              No hay mensajes en este canal. ¡Envía el primero!
             </div>
-          ))
+          ) : (
+            chat.map((msg, i) => (
+              <div 
+                key={i} 
+                className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100 last:mb-0"
+              >
+                {msg}
+              </div>
+            ))
+          )}
+        </div>
+  
+        {/* Files section */}
+        {files.length > 0 && (
+          <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <h3 className="font-bold mb-3 text-gray-700">Archivos compartidos:</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {files
+                .filter(f => f.channel === currentChannel)
+                .map((file, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => downloadFile(file.data, `file-${i}`)}
+                    className="p-3 bg-blue-50 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition duration-200 flex items-center"
+                  >
+                    <span className="ml-2 text-sm truncate">- Archivo de {file.sender}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
         )}
       </div>
   
-      {/* Files section */}
-      {files.length > 0 && (
-        <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-          <h3 className="font-bold mb-3 text-gray-700">Archivos compartidos:</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {files
-              .filter(f => f.channel === currentChannel)
-              .map((file, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => downloadFile(file.data, `file-${i}`)}
-                  className="p-3 bg-blue-50 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition duration-200 flex items-center"
-                >
-                  <span className="ml-2 text-sm truncate">- Archivo de {file.sender}</span>
-                </div>
-              ))}
+      {/* Sidebar derecha - Controles */}
+      <div className="w-1/4 flex flex-col p-4 bg-gray-100">
+        {/* Username Modal */}
+        {showUsernameModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-80">
+              <h2 className="text-xl font-bold mb-4 text-gray-800">Elige un nombre de usuario</h2>
+              <input
+                type="text"
+                value={tempUsername}
+                onChange={(e) => setTempUsername(e.target.value)}
+                placeholder="Tu nombre..."
+                className="w-full border border-gray-300 rounded-lg p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleSetUsername}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        )}
+  
+        {/* Message Input */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold mb-3 text-gray-700">Enviar Mensaje</h2>
+          <div className="flex flex-col gap-3">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Escribe un mensaje..."
+              className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            />
+            
+            <div className="flex gap-3">
+              <input
+                type="file"
+                onChange={handleFile}
+                className="hidden"
+                id="fileInput"
+              />
+              <label
+                htmlFor="fileInput"
+                className={`flex-1 p-2 rounded-lg cursor-pointer flex items-center justify-center ${
+                  file 
+                    ? 'bg-green-100 text-green-600' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                } transition duration-200`}
+              >
+                {file ? 'Archivo seleccionado' : 'Seleccionar archivo'}
+              </label>
+              <button
+                onClick={handleSendMessage}
+                disabled={!message && !file}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Enviar
+              </button>
+            </div>
           </div>
         </div>
-      )}
   
-      {/* Message Input */}
-      <div className="flex gap-3">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Escribe un mensaje..."
-          className="flex-1 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-        />
-        <input
-          type="file"
-          onChange={handleFile}
-          className="hidden"
-          id="fileInput"
-        />
-        <label
-          htmlFor="fileInput"
-          className={`p-2 rounded-lg cursor-pointer flex items-center justify-center w-12 ${
-            file 
-              ? 'bg-green-100 text-green-600' 
-              : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-          } transition duration-200`}
-        >
-          {file?.name || 'No file selected'}
-        </label>
-        <button
-          onClick={handleSendMessage}
-          disabled={!message && !file}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          Enviar
-        </button>
-      </div>
+        {/* File Preview */}
+        {file && (
+          <div className="mt-3 p-3 bg-blue-100 rounded-lg flex flex-col gap-2">
+            <span className="text-sm font-medium text-blue-800">
+              Archivo seleccionado:
+            </span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-blue-800 truncate">
+                {file.name}
+              </span>
+              <button 
+                onClick={() => setFile(null)}
+                className="ml-2 text-red-500 hover:text-red-700 text-sm"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        )}
   
-      {/* File Preview */}
-      {file && (
-        <div className="mt-3 p-3 bg-blue-100 rounded-lg flex justify-between items-center">
-          <span className="text-sm text-blue-800 truncate">
-            Archivo seleccionado: {file.name}
-          </span>
-          <button 
-            onClick={() => setFile(null)}
-            className="ml-2 text-red-500 hover:text-red-700"
-          >
-            Cancel
-          </button>
+        {/* User Info */}
+        <div className="mt-auto p-4 bg-white rounded-lg border border-gray-200">
+          <h3 className="font-bold mb-2 text-gray-700">Tu información</h3>
+          <p className="text-sm text-gray-600">Usuario: {username || 'Anónimo'}</p>
+          <p className="text-sm text-gray-600">Canal actual: #{currentChannel}</p>
         </div>
-      )}
+      </div>
     </div>
   );
 };
