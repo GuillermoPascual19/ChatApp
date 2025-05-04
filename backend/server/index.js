@@ -16,7 +16,6 @@ const io = new SocketServer(server, {
   }
 });
 
-// Channel structure: { name: string, history: array, coordinator: string }
 const channels = {
   general: { history: [], coordinator: null },
   tech: { history: [], coordinator: null },

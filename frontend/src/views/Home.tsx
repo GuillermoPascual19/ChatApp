@@ -197,7 +197,7 @@ const Home = () => {
 
       {/* Channel Selector */}
       <div className="flex gap-3 mb-6">
-        {['general', 'tech', 'random'].map(channel => (
+        {['general', 'general2', 'random'].map(channel => (
           <button 
             key={channel}
             onClick={() => {
@@ -210,7 +210,7 @@ const Home = () => {
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
           >
-            #{channel}
+            {channel}
           </button>
         ))}
       </div>
@@ -278,7 +278,7 @@ const Home = () => {
               : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
           } transition duration-200`}
         >
-          {file ? '✓' : '📎'}
+          {file?.name || 'No file selected'}
         </label>
         <button
           onClick={handleSendMessage}
@@ -299,7 +299,7 @@ const Home = () => {
             onClick={() => setFile(null)}
             className="ml-2 text-red-500 hover:text-red-700"
           >
-            ✕
+            Cancel
           </button>
         </div>
       )}
