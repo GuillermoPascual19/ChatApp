@@ -88,7 +88,6 @@ const Home = () => {
       });
     }
 
-    setChat(prev => [...prev, `[Me]: ${message}${file ? ' [Archivo adjunto]' : ''}`]);
     setMessage('');
     setFile(null);
   };
@@ -112,6 +111,21 @@ const Home = () => {
     document.body.removeChild(link);
   };
 
+  function toBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          resolve(reader.result.toString());
+        } else {
+          reject(new Error('File could not be converted to Base64'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Error reading file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Server Communication
   useEffect(() => {
     socket.current.on('Id', (id) => {
@@ -134,7 +148,7 @@ const Home = () => {
     });
 
     socket.current.on('new-message', (message) => {
-      setChat(prev => [...prev, message]);
+      setChat(prev => [...prev.filter(msg => !msg.includes(message)), message]);
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
@@ -154,7 +168,11 @@ const Home = () => {
   }, [myID]);
 
   return (
+    
     <div className="flex flex-col h-screen bg-gray-50 p-4">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
+      </header>
       {/* Username Modal */}
       {showUsernameModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
@@ -176,11 +194,6 @@ const Home = () => {
           </div>
         </div>
       )}
-
-      {/* Header */}
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
-      </header>
 
       {/* Channel Selector */}
       <div className="flex gap-3 mb-6">
@@ -293,20 +306,5 @@ const Home = () => {
     </div>
   );
 };
-
-function toBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        resolve(reader.result.toString());
-      } else {
-        reject(new Error('File could not be converted to Base64'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Error reading file'));
-    reader.readAsDataURL(file);
-  });
-}
 
 export default Home;
