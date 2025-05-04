@@ -168,11 +168,11 @@ const Home = () => {
   }, [myID]);
 
   return (
-    
     <div className="flex flex-col h-screen bg-gray-50 p-4">
-      <header className="mb-6">
+      <header className="mb-8"> {/* Aumentado de mb-6 a mb-8 */}
         <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
       </header>
+      
       {/* Username Modal */}
       {showUsernameModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
@@ -194,9 +194,9 @@ const Home = () => {
           </div>
         </div>
       )}
-
-      {/* Channel Selector */}
-      <div className="flex gap-3 mb-6">
+  
+      {/* Channel Selector - Añadido mt-6 para más espacio arriba */}
+      <div className="flex gap-4 mb-8 mt-6"> {/* Cambiado gap-3 a gap-4 y mb-6 a mb-8 */}
         {['general', 'general2', 'random'].map(channel => (
           <button 
             key={channel}
@@ -214,8 +214,8 @@ const Home = () => {
           </button>
         ))}
       </div>
-
-      {/* Chat Messages */}
+  
+      {/* Resto del código permanece igual */}
       <div className="flex-1 overflow-y-auto mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         {chat.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
@@ -232,7 +232,7 @@ const Home = () => {
           ))
         )}
       </div>
-
+  
       {/* Files section */}
       {files.length > 0 && (
         <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
@@ -246,14 +246,13 @@ const Home = () => {
                   onClick={() => downloadFile(file.data, `file-${i}`)}
                   className="p-3 bg-blue-50 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition duration-200 flex items-center"
                 >
-                  <span className="text-blue-600">📎</span>
-                  <span className="ml-2 text-sm truncate">Archivo de {file.sender}</span>
+                  <span className="ml-2 text-sm truncate">- Archivo de {file.sender}</span>
                 </div>
               ))}
           </div>
         </div>
       )}
-
+  
       {/* Message Input */}
       <div className="flex gap-3">
         <input
@@ -288,7 +287,7 @@ const Home = () => {
           Enviar
         </button>
       </div>
-
+  
       {/* File Preview */}
       {file && (
         <div className="mt-3 p-3 bg-blue-100 rounded-lg flex justify-between items-center">
