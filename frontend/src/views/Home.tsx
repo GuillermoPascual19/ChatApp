@@ -170,7 +170,7 @@ const Home = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar izquierda - Canales y Mensajes */}
-      <div className="w-3/4 flex flex-col p-4 border-r border-gray-200">
+      <div className="w-1/4 flex flex-col p-4 bg-gray-100 border-r border-gray-200">
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
         </header>

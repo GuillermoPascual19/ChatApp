@@ -1,5 +1,3 @@
-
-// index.js (Backend)
 import express from 'express';
 import cors from 'cors';
 import { Server as SocketServer } from 'socket.io';
@@ -99,7 +97,6 @@ io.on('connection', (socket) => {
       
       // Send file to all clients in the channel
       io.to(channel).emit('new-file', fileData);
-      // io.to(channel).emit('new-message', fileMessage);
     } else {
       // Regular text message
       channels[channel].history.push(formattedMessage);
