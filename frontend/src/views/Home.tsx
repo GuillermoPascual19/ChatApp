@@ -177,7 +177,7 @@ const Home = () => {
         
         {/* Channel Selector */}
         <div className="flex gap-4 mb-6">
-          {['general', 'general2', 'random'].map(channel => (
+          {['general', 'auxiliar'].map(channel => (
             <button 
               key={channel}
               onClick={() => {
