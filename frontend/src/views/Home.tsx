@@ -169,74 +169,9 @@ const Home = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar izquierda - Canales y Mensajes */}
+      {/* Columna Izquierda - Controles */}
       <div className="w-1/4 flex flex-col p-4 bg-gray-100 border-r border-gray-200">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
-        </header>
-        
-        {/* Channel Selector */}
-        <div className="flex gap-4 mb-6">
-          {['general', 'auxiliar'].map(channel => (
-            <button 
-              key={channel}
-              onClick={() => {
-                setCurrentChannel(channel);
-                socket.current.emit('joinChannel', channel);
-              }}
-              className={`px-4 py-2 rounded-lg transition duration-200 ${
-                currentChannel === channel 
-                  ? 'bg-blue-500 text-white shadow-md' 
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              #{channel}
-            </button>
-          ))}
-        </div>
-  
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-          {chat.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No hay mensajes en este canal. ¡Envía el primero!
-            </div>
-          ) : (
-            chat.map((msg, i) => (
-              <div 
-                key={i} 
-                className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100 last:mb-0"
-              >
-                {msg}
-              </div>
-            ))
-          )}
-        </div>
-  
-        {/* Files section */}
-        {files.length > 0 && (
-          <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-            <h3 className="font-bold mb-3 text-gray-700">Archivos compartidos:</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {files
-                .filter(f => f.channel === currentChannel)
-                .map((file, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => downloadFile(file.data, `file-${i}`)}
-                    className="p-3 bg-blue-50 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition duration-200 flex items-center"
-                  >
-                    <span className="ml-2 text-sm truncate">- Archivo de {file.sender}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-  
-      {/* Sidebar derecha - Controles */}
-      <div className="w-1/4 flex flex-col p-4 bg-gray-100">
-        {/* Username Modal */}
+        {/* Modal de Usuario */}
         {showUsernameModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
             <div className="bg-white p-6 rounded-lg shadow-lg w-80">
@@ -257,8 +192,8 @@ const Home = () => {
             </div>
           </div>
         )}
-  
-        {/* Message Input */}
+
+        {/* Input de Mensaje */}
         <div className="mb-4">
           <h2 className="text-lg font-semibold mb-3 text-gray-700">Enviar Mensaje</h2>
           <div className="flex flex-col gap-3">
@@ -298,8 +233,8 @@ const Home = () => {
             </div>
           </div>
         </div>
-  
-        {/* File Preview */}
+
+        {/* Previsualización de Archivo */}
         {file && (
           <div className="mt-3 p-3 bg-blue-100 rounded-lg flex flex-col gap-2">
             <span className="text-sm font-medium text-blue-800">
@@ -318,13 +253,78 @@ const Home = () => {
             </div>
           </div>
         )}
-  
-        {/* User Info */}
+
+        {/* Información del Usuario */}
         <div className="mt-auto p-4 bg-white rounded-lg border border-gray-200">
           <h3 className="font-bold mb-2 text-gray-700">Tu información</h3>
           <p className="text-sm text-gray-600">Usuario: {username || 'Anónimo'}</p>
           <p className="text-sm text-gray-600">Canal actual: #{currentChannel}</p>
         </div>
+      </div>
+
+      {/* Columna Derecha - Chat */}
+      <div className="w-3/4 flex flex-col p-4">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
+        </header>
+        
+        {/* Selector de Canal */}
+        <div className="flex gap-4 mb-6">
+          {['general', 'auxiliar'].map(channel => (
+            <button 
+              key={channel}
+              onClick={() => {
+                setCurrentChannel(channel);
+                socket.current.emit('joinChannel', channel);
+              }}
+              className={`px-4 py-2 rounded-lg transition duration-200 ${
+                currentChannel === channel 
+                  ? 'bg-blue-500 text-white shadow-md' 
+                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              #{channel}
+            </button>
+          ))}
+        </div>
+
+        {/* Mensajes del Chat */}
+        <div className="flex-1 overflow-y-auto mb-6 bg-gray-50 rounded-lg shadow-sm p-4 border border-gray-200">
+          {chat.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              No hay mensajes en este canal. ¡Envía el primero!
+            </div>
+          ) : (
+            chat.map((msg, i) => (
+              <div 
+                key={i} 
+                className="mb-3 p-3 bg-white rounded-lg border border-gray-100 last:mb-0 shadow-sm"
+              >
+                {msg}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Sección de Archivos */}
+        {files.length > 0 && (
+          <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <h3 className="font-bold mb-3 text-gray-700">Archivos compartidos:</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {files
+                .filter(f => f.channel === currentChannel)
+                .map((file, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => downloadFile(file.data, `file-${i}`)}
+                    className="p-3 bg-blue-50 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition duration-200 flex items-center"
+                  >
+                    <span className="ml-2 text-sm truncate">- Archivo de {file.sender}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
