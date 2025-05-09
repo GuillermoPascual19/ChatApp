@@ -18,8 +18,7 @@ const io = new SocketServer(server, {
 
 const channels = {
   general: { history: [], coordinator: null },
-  tech: { history: [], coordinator: null },
-  random: { history: [], coordinator: null }
+  auxiliar: { history: [], coordinator: null }
 };
 
 const users = new Map();
