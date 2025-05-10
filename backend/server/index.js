@@ -42,8 +42,9 @@ io.on('connection', (socket) => {
       // Notify channels of username change
       users.get(socket.id)?.channels.forEach(channelName => {
         const systemMsg = `[System] ${oldUsername} ahora es ${username}`;
-        channels[channelName].history.push(systemMsg);
-        io.to(channelName).emit('new-message', systemMsg);
+        // Añadir al inicio del historial en lugar de al final
+        channels[channelName].history.unshift(systemMsg);
+        io.to(channelName).emit('new-message', systemMsg, true); // Segundo parámetro indica mensaje nuevo al inicio
       });
     }
   });
@@ -64,8 +65,9 @@ io.on('connection', (socket) => {
 
     // Inform channel about new user
     const joinMsg = `[System] ${username} se ha unido a #${channelName}`;
-    channels[channelName].history.push(joinMsg);
-    io.to(channelName).emit('new-message', joinMsg);
+    // Añadir al inicio del historial
+    channels[channelName].history.unshift(joinMsg);
+    io.to(channelName).emit('new-message', joinMsg, true); // true indica mensaje nuevo al inicio
 
     // Assign coordinator if needed
     if (!channels[channelName].coordinator) {
@@ -73,7 +75,7 @@ io.on('connection', (socket) => {
       socket.emit('coordinator-status', true);
     }
 
-    // Send channel history
+    // Send channel history (ahora ya viene en orden inverso)
     socket.emit('history', channels[channelName].history);
   });
 
@@ -93,18 +95,20 @@ io.on('connection', (socket) => {
       
       // Store file info in history
       const fileMessage = `[${channel}] [${username}]: ${message} [Archivo adjunto]`;
-      channels[channel].history.push(fileMessage);
+      // Añadir al inicio del historial
+      channels[channel].history.unshift(fileMessage);
       
       // Send file to all clients in the channel
-      io.to(channel).emit('new-file', fileData);
+      io.to(channel).emit('new-file', fileData, true); // true indica archivo nuevo al inicio
     } else {
       // Regular text message
-      channels[channel].history.push(formattedMessage);
+      // Añadir al inicio del historial
+      channels[channel].history.unshift(formattedMessage);
       if (channels[channel].history.length > 100) {
-        channels[channel].history.shift();
+        channels[channel].history.pop(); // Eliminar el mensaje más antiguo (ahora el último)
       }
       
-      io.to(channel).emit('new-message', formattedMessage);
+      io.to(channel).emit('new-message', formattedMessage, true); // true indica mensaje nuevo al inicio
     }
   });
 
@@ -126,8 +130,9 @@ io.on('connection', (socket) => {
     userChannels.forEach(channelName => {
       if (channels[channelName]) {
         const leaveMsg = `[System] ${username} se ha desconectado`;
-        channels[channelName].history.push(leaveMsg);
-        io.to(channelName).emit('new-message', leaveMsg);
+        // Añadir al inicio del historial
+        channels[channelName].history.unshift(leaveMsg);
+        io.to(channelName).emit('new-message', leaveMsg, true); // true indica mensaje nuevo al inicio
       }
     });
     
