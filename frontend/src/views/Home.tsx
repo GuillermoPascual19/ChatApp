@@ -139,7 +139,7 @@ const Home = () => {
     });
 
     socket.current.on('history', (history) => {
-      setChat(history);
+      setChat(history.reverse());
     });
 
     socket.current.on('user-joined', (payload) => {
