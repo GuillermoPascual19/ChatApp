@@ -9,7 +9,7 @@ const server = http.createServer(app);
 
 const io = new SocketServer(server, {
   cors: {
-    origin: ['http://localhost:5173', 'https://your-deployment-url.com'],
+    origin: ['http://localhost:5173', 'https://chat-app-drab-delta-83.vercel.app/'],
     methods: ['GET', 'POST']
   }
 });

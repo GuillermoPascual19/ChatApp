@@ -26,6 +26,7 @@ const Home = () => {
   const [files, setFiles] = useState<FileMessage[]>([]);
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const peersRef = useRef<PeerRef[]>([]);
+  
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
   // WebRTC Configuration
