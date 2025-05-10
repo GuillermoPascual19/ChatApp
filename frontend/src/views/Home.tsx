@@ -1,4 +1,4 @@
-// HOME.tsx (Frontend)
+
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
@@ -167,46 +167,46 @@ const Home = () => {
     }
   }, [myID]);
 
-  return (
+   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Columna Izquierda - Controles */}
+      {/* COLUMNA IZQUIERDA - CONTROLES */}
       <div className="w-1/4 flex flex-col p-4 bg-gray-100 border-r border-gray-200">
-        {/* Modal de Usuario */}
+        {/* Modal Usuario */}
         {showUsernameModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-lg w-80">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Elige un nombre de usuario</h2>
+              <h2 className="text-xl font-bold mb-4">Elige tu nombre</h2>
               <input
                 type="text"
                 value={tempUsername}
                 onChange={(e) => setTempUsername(e.target.value)}
-                placeholder="Tu nombre..."
-                className="w-full border border-gray-300 rounded-lg p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nombre de usuario"
+                className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
               <button
                 onClick={handleSetUsername}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200"
+                className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
               >
-                Continuar
+                Confirmar
               </button>
             </div>
           </div>
         )}
 
-        {/* Input de Mensaje */}
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold mb-3 text-gray-700">Enviar Mensaje</h2>
-          <div className="flex flex-col gap-3">
+        {/* Entrada de Mensaje */}
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold mb-4">Enviar Mensaje</h2>
+          <div className="space-y-4">
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escribe un mensaje..."
-              className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Escribe tu mensaje..."
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
             />
             
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <input
                 type="file"
                 onChange={handleFile}
@@ -215,72 +215,69 @@ const Home = () => {
               />
               <label
                 htmlFor="fileInput"
-                className={`flex-1 p-2 rounded-lg cursor-pointer flex items-center justify-center ${
-                  file 
-                    ? 'bg-green-100 text-green-600' 
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                } transition duration-200`}
+                className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
+                  file ? 'bg-green-100 text-green-600' : 'bg-gray-200 hover:bg-gray-300'
+                }`}
               >
-                {file ? 'Archivo seleccionado' : 'Seleccionar archivo'}
+                {file ? 'Archivo listo' : 'Seleccionar archivo'}
               </label>
               <button
                 onClick={handleSendMessage}
                 disabled={!message && !file}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
               >
                 Enviar
               </button>
             </div>
           </div>
+
+          {/* Previsualización Archivo */}
+          {file && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-sm truncate">{file.name}</span>
+                <button 
+                  onClick={() => setFile(null)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Previsualización de Archivo */}
-        {file && (
-          <div className="mt-3 p-3 bg-blue-100 rounded-lg flex flex-col gap-2">
-            <span className="text-sm font-medium text-blue-800">
-              Archivo seleccionado:
-            </span>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-blue-800 truncate">
-                {file.name}
-              </span>
-              <button 
-                onClick={() => setFile(null)}
-                className="ml-2 text-red-500 hover:text-red-700 text-sm"
-              >
-                Eliminar
-              </button>
-            </div>
+        {/* Información Usuario */}
+        <div className="mt-auto pt-4 border-t border-gray-200">
+          <div className="bg-white p-3 rounded-lg shadow-sm">
+            <p className="font-semibold">{username || 'Anónimo'}</p>
+            <p className="text-sm text-gray-600">Canal: #{currentChannel}</p>
           </div>
-        )}
-
-        {/* Información del Usuario */}
-        <div className="mt-auto p-4 bg-white rounded-lg border border-gray-200">
-          <h3 className="font-bold mb-2 text-gray-700">Tu información</h3>
-          <p className="text-sm text-gray-600">Usuario: {username || 'Anónimo'}</p>
-          <p className="text-sm text-gray-600">Canal actual: #{currentChannel}</p>
         </div>
       </div>
 
-      {/* Columna Derecha - Chat */}
-      <div className="w-3/4 flex flex-col p-4">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">P2P Chat - <span className="text-blue-600">{username || 'Anónimo'}</span></h1>
-        </header>
-        
+      {/* COLUMNA DERECHA - CHAT */}
+      <div className="w-3/4 flex flex-col p-4 bg-white">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Chat P2P - <span className="text-blue-600">{username || 'Anónimo'}</span>
+          </h1>
+        </div>
+
         {/* Selector de Canal */}
-        <div className="flex gap-4 mb-6">
-          {['general', 'auxiliar'].map(channel => (
-            <button 
+        <div className="flex gap-3 mb-6">
+          {['general', 'auxiliar'].map((channel) => (
+            <button
               key={channel}
               onClick={() => {
                 setCurrentChannel(channel);
                 socket.current.emit('joinChannel', channel);
               }}
-              className={`px-4 py-2 rounded-lg transition duration-200 ${
-                currentChannel === channel 
-                  ? 'bg-blue-500 text-white shadow-md' 
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                currentChannel === channel
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               #{channel}
@@ -289,16 +286,16 @@ const Home = () => {
         </div>
 
         {/* Mensajes del Chat */}
-        <div className="flex-1 overflow-y-auto mb-6 bg-gray-50 rounded-lg shadow-sm p-4 border border-gray-200">
+        <div className="flex-1 overflow-y-auto mb-6 space-y-3 pr-2">
           {chat.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
-              No hay mensajes en este canal. ¡Envía el primero!
+              No hay mensajes en este canal
             </div>
           ) : (
             chat.map((msg, i) => (
-              <div 
-                key={i} 
-                className="mb-3 p-3 bg-white rounded-lg border border-gray-100 last:mb-0 shadow-sm"
+              <div
+                key={i}
+                className="p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm"
               >
                 {msg}
               </div>
@@ -306,20 +303,20 @@ const Home = () => {
           )}
         </div>
 
-        {/* Sección de Archivos */}
+        {/* Archivos Compartidos */}
         {files.length > 0 && (
-          <div className="mb-6 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-            <h3 className="font-bold mb-3 text-gray-700">Archivos compartidos:</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="font-semibold mb-3">Archivos compartidos</h3>
+            <div className="grid grid-cols-2 gap-3">
               {files
-                .filter(f => f.channel === currentChannel)
+                .filter((f) => f.channel === currentChannel)
                 .map((file, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     onClick={() => downloadFile(file.data, `file-${i}`)}
-                    className="p-3 bg-blue-50 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100 transition duration-200 flex items-center"
+                    className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                   >
-                    <span className="ml-2 text-sm truncate">- Archivo de {file.sender}</span>
+                    <span className="text-sm">Archivo de {file.sender}</span>
                   </div>
                 ))}
             </div>
@@ -328,6 +325,7 @@ const Home = () => {
       </div>
     </div>
   );
+
 };
 
 export default Home;
