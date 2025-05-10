@@ -287,7 +287,7 @@ const Home = () => {
       </div>
 
       {/* Mensajes del Chat */}
-      <div className="flex-1 overflow-y-auto mb-6 space-y-3 pr-2">
+      {/* <div className="flex-1 overflow-y-auto mb-6 space-y-3 pr-2">
         {chat.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             No hay mensajes en este canal
@@ -299,6 +299,39 @@ const Home = () => {
               className="p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm"
             >
               {msg}
+            </div>
+          ))
+        )}
+      </div> */}
+      <div className="flex-1 overflow-y-auto mb-6 space-y-3 pr-2">
+        {chat.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            No hay mensajes en este canal
+          </div>
+        ) : (
+          chat.map((msg, i) => (
+            <div
+              key={i}
+              className={`p-3 rounded-lg max-w-[80%] ${
+                msg.includes(`[${username}]`) 
+                  ? 'bg-green-100 ml-auto'  // Tus mensajes
+                  : 'bg-blue-100 mr-auto'   // Mensajes de otros
+              }`}
+            >
+              <div className="font-semibold text-sm">
+                {msg.match(/\[(.*?)\]/)?.[1] || 'Anónimo'}
+              </div>
+              <div className="mt-1">
+                {msg.split(']: ').slice(1).join(']: ')}
+              </div>
+              {files[i] && (
+                <button 
+                  onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                  className="mt-2 text-sm text-blue-600 hover:underline"
+                >
+                  📎 Descargar archivo adjunto
+                </button>
+              )}
             </div>
           ))
         )}
