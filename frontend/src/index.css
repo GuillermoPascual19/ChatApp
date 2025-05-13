@@ -1,10 +1,8 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,48 +20,205 @@ html, body, #root {
   width: 100%;
 }
 
-/* Layout principal */
+/* Layout principal - Modo Claro */
 .main-container {
   display: flex;
   height: 100vh;
-  background-color: #f3f4f6;
-  transition: background-color 0.3s ease;
+  background-color: #f8fafc;
+  transition: all 0.3s ease;
 }
 
-.main-container.dark {
-  background-color: #111827;
-}
-
-/* Columna izquierda - Controles */
+/* Columna izquierda - Controles (Modo Claro) */
 .controls-column {
   width: 25%;
   min-width: 300px;
-  background: #f8fafc;
+  background: #ffffff;
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
-.dark .controls-column {
-  background: #1f2937;
-  border-right-color: #374151;
-}
-
-/* Columna derecha - Chat */
+/* Columna derecha - Chat (Modo Claro) */
 .chat-column {
   flex: 1;
   min-width: 0;
-  background: white;
+  background: #f9fafb;
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
-  transition: background-color 0.3s ease;
+  padding: 2rem;
+}
+
+/* Header Chat (Modo Claro) */
+.chat-column h1 {
+  color: #1e293b;
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+}
+
+/* Botones de canal (Modo Claro) */
+.chat-column button {
+  background-color: #ffffff;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.chat-column button:hover {
+  background-color: #f1f5f9;
+}
+
+.chat-column button.current-channel {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+/* Mensajes (Modo Claro) */
+.message-container {
+  max-width: 80%;
+  min-width: 20%;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.message-sender {
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.message-text {
+  color: #1e293b;
+  margin: 0.25rem 0;
+}
+
+.message-time {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+/* Mensajes recibidos (Modo Claro) */
+.message-received {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-top-left-radius: 0;
+}
+
+/* Mensajes enviados (Modo Claro) */
+.message-sent {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-top-right-radius: 0;
+}
+
+/* Inputs (Modo Claro) */
+input[type="text"] {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.3);
+}
+
+/* Botones (Modo Claro) */
+button {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #2563eb;
+}
+
+button:disabled {
+  background-color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+/* Archivos compartidos (Modo Claro) */
+.shared-file {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shared-file:hover {
+  background-color: #f8fafc;
+}
+
+/* Modo Oscuro */
+.main-container.dark {
+  background-color: #0f172a;
+}
+
+.dark .controls-column {
+  background-color: #1e293b;
+  border-right-color: #334155;
 }
 
 .dark .chat-column {
-  background: #111827;
+  background-color: #0f172a;
+}
+
+.dark .chat-column h1 {
+  color: #f8fafc;
+}
+
+.dark .message-container {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .message-received {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.dark .message-sent {
+  background-color: #1e40af;
+  border-color: #1e40af;
+  color: #f8fafc;
+}
+
+.dark input[type="text"] {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.dark .shared-file {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.dark .shared-file:hover {
+  background-color: #334155;
 }
 
 /* Responsive Design */
@@ -77,121 +232,28 @@ html, body, #root {
     min-width: auto;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
-    height: auto;
   }
 
   .dark .controls-column {
-    border-bottom-color: #374151;
+    border-bottom-color: #334155;
   }
   
   .chat-column {
-    height: 70vh;
+    padding: 1.5rem;
   }
 }
 
-/* Estilos para las burbujas de chat */
-.bg-blue-100 {
-  background-color: #dbeafe;
-  border-radius: 18px 18px 18px 4px;
-}
-
-.dark .bg-blue-100 {
-  background-color: #1e3a8a;
-}
-
-.bg-green-100 {
-  background-color: #d1fae5;
-  border-radius: 18px 18px 4px 18px;
-}
-
-.dark .bg-green-100 {
-  background-color: #166534;
-}
-
-.max-w-\[80\%\] {
-  max-width: 80%;
-}
-
-.min-w-\[20\%\] {
-  min-width: 20%;
-}
-
-/* Alineación de mensajes */
-.ml-auto {
-  margin-left: auto;
-}
-
-.mr-auto {
-  margin-right: auto;
-}
-
-/* Espaciado */
-.space-y-4 > * + * {
-  margin-top: 1rem;
-}
-
-/* Bordes redondeados */
-.rounded-tr-none {
-  border-top-right-radius: 0;
-}
-
-.rounded-tl-none {
-  border-top-left-radius: 0;
-}
-
-/* Padding */
-.p-3 {
-  padding: 0.75rem;
-}
-
-/* Estilo para los mensajes de error */
-.bg-gray-100 {
-  background-color: #f3f4f6;
-}
-
-.dark .bg-gray-100 {
-  background-color: #374151;
-}
-
-/* Textos en dark mode */
-.dark {
-  color: #f3f4f6;
-}
-
-.dark .text-gray-600 {
-  color: #d1d5db;
-}
-
-.dark .text-gray-500 {
-  color: #9ca3af;
-}
-
-.dark .text-gray-700 {
-  color: #e5e7eb;
-}
-
-.dark .text-gray-800 {
-  color: #f9fafb;
-}
-
-/* Transiciones generales */
-.main-container,
-.main-container * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+  background: #f1f5f9;
 }
 
 .dark ::-webkit-scrollbar-track {
-  background: #374151;
+  background: #1e293b;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -200,18 +262,10 @@ html, body, #root {
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #475569;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-/* Estilos para el botón de dark mode toggle */
+/* Botón de toggle dark mode */
 .dark-mode-toggle {
   position: fixed;
   bottom: 1.5rem;
@@ -227,16 +281,21 @@ html, body, #root {
   background-color: #3b82f6;
   color: white;
   border: none;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
 
 .dark-mode-toggle:hover {
-  background-color: #2563eb;
   transform: scale(1.05);
+  background-color: #2563eb;
 }
 
-.dark-mode-toggle:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message-container {
+  animation: fadeIn 0.3s ease-out;
 }
