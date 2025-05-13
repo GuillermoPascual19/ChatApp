@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
+import { Sun, Moon, X, Paperclip } from 'lucide-react';
 
 interface PeerRef {
   peerID: string;
@@ -396,7 +397,7 @@ return (
         className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
         aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       >
-        {darkMode ? '☀️' : '🌙'}
+        {darkMode ? <Sun/> : <Moon />}
       </button>
 
       {/* COLUMNA IZQUIERDA - CONTROLES */}
@@ -493,7 +494,7 @@ return (
                   onClick={() => setFile(null)}
                   className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                 >
-                  ×
+                  <X />
                 </button>
               </div>
             </div>
@@ -573,7 +574,7 @@ return (
                           onClick={() => downloadFile(files[i].data, `file-${i}`)}
                           className="mt-2 text-sm text-blue-600 hover:underline flex items-center dark:text-blue-400"
                         >
-                          <span className="mr-1">📎</span>
+                          <Paperclip/>
                           Descargar archivo
                         </button>
                       )}
