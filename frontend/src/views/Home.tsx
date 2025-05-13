@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
@@ -77,10 +78,7 @@ const Home = () => {
         socket.current.emit('message', {
           message: formattedMessage,
           channel: currentChannel,
-          file: {
-            data:fileData,
-            name:file.name,
-          }
+          file: fileData
         });
       } catch (error) {
         console.error('Error processing file:', error);
