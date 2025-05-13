@@ -1,19 +1,19 @@
 
-// import Home from './views/Home'
+import Home from './views/Home'
 import './App.css'
-import HomeLayout from './layout/home-layout'
+// import HomeLayout from './layout/home-layout'
 
 function App() {
   return (
-    // <Home />
-    <HomeLayout
-      chat={[]}
-      username="User"
-      files={[]}
-      currentChannel="general"
-      onChannelChange={() => {}}
-      downloadFile={() => {}}
-    />
+    <Home />
+    // <HomeLayout
+    //   chat={[]}
+    //   username="User"
+    //   files={[]}
+    //   currentChannel="general"
+    //   onChannelChange={() => {}}
+    //   downloadFile={() => {}}
+    // />
   )
 }
 
