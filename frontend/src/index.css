@@ -27,6 +27,11 @@ html, body, #root {
   display: flex;
   height: 100vh;
   background-color: #f3f4f6;
+  transition: background-color 0.3s ease;
+}
+
+.main-container.dark {
+  background-color: #111827;
 }
 
 /* Columna izquierda - Controles */
@@ -38,6 +43,12 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.dark .controls-column {
+  background: #1f2937;
+  border-right-color: #374151;
 }
 
 /* Columna derecha - Chat */
@@ -48,6 +59,11 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
+  transition: background-color 0.3s ease;
+}
+
+.dark .chat-column {
+  background: #111827;
 }
 
 /* Responsive Design */
@@ -63,26 +79,13 @@ html, body, #root {
     border-bottom: 1px solid #e2e8f0;
     height: auto;
   }
+
+  .dark .controls-column {
+    border-bottom-color: #374151;
+  }
   
   .chat-column {
     height: 70vh;
-  }
-}
-
-/* Modo claro */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #1e293b;
-    background-color: #ffffff;
-  }
-  
-  .controls-column {
-    background-color: #f8fafc;
-    border-right-color: #cbd5e1;
-  }
-  
-  .chat-column {
-    background-color: #ffffff;
   }
 }
 
@@ -92,15 +95,28 @@ html, body, #root {
   border-radius: 18px 18px 18px 4px;
 }
 
+.dark .bg-blue-100 {
+  background-color: #1e3a8a;
+}
+
 .bg-green-100 {
   background-color: #d1fae5;
   border-radius: 18px 18px 4px 18px;
+}
+
+.dark .bg-green-100 {
+  background-color: #166534;
 }
 
 .max-w-\[80\%\] {
   max-width: 80%;
 }
 
+.min-w-\[20\%\] {
+  min-width: 20%;
+}
+
+/* Alineación de mensajes */
 .ml-auto {
   margin-left: auto;
 }
@@ -109,14 +125,12 @@ html, body, #root {
   margin-right: auto;
 }
 
+/* Espaciado */
 .space-y-4 > * + * {
   margin-top: 1rem;
 }
 
-.min-w-\[20\%\] {
-  min-width: 20%;
-}
-
+/* Bordes redondeados */
 .rounded-tr-none {
   border-top-right-radius: 0;
 }
@@ -125,7 +139,7 @@ html, body, #root {
   border-top-left-radius: 0;
 }
 
-/* Mejor espaciado interno */
+/* Padding */
 .p-3 {
   padding: 0.75rem;
 }
@@ -133,4 +147,96 @@ html, body, #root {
 /* Estilo para los mensajes de error */
 .bg-gray-100 {
   background-color: #f3f4f6;
+}
+
+.dark .bg-gray-100 {
+  background-color: #374151;
+}
+
+/* Textos en dark mode */
+.dark {
+  color: #f3f4f6;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db;
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+
+.dark .text-gray-800 {
+  color: #f9fafb;
+}
+
+/* Transiciones generales */
+.main-container,
+.main-container * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Estilos para el botón de dark mode toggle */
+.dark-mode-toggle {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.dark-mode-toggle:hover {
+  background-color: #2563eb;
+  transform: scale(1.05);
+}
+
+.dark-mode-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
 }
