@@ -30,7 +30,12 @@ const Home = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const peersRef = useRef<PeerRef[]>([]);
 
-  const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
+  // Usar Socket.IO con reconexión automática
+  const socket = useRef(io('https://chatapp-87po.onrender.com', { 
+    transports: ['websocket'],
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+  }));
 
   // WebRTC Configuration
   const addPeer = (incomingSignal: string, callerID: string) => {
@@ -84,6 +89,8 @@ const Home = () => {
     if (file) {
       try {
         const fileData = await toBase64(file);
+        console.log("File converted to base64, first 20 chars:", fileData.substring(0, 20));
+        
         // Send to coordinator for history
         socket.current.emit('message', {
           message: formattedMessage,
@@ -122,50 +129,47 @@ const Home = () => {
   };
 
   const downloadFile = (fileData: string, filename: string) => {
+    console.log("Downloading file, data type:", typeof fileData);
+    console.log("File data preview:", fileData ? fileData.substring(0, 50) + '...' : 'empty');
+    
     try {
-      // Verificar si fileData es un string válido
-      if (!fileData || typeof fileData !== 'string') {
-        throw new Error('Datos de archivo inválidos');
+      // Si fileData ya es directamente una URL, usarla
+      if (fileData.startsWith('blob:') || fileData.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = fileData;
+        a.download = filename || 'downloaded-file';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
       }
       
-      // Asegurarse de que fileData sea un DataURL válido
-      if (!fileData.includes('base64')) {
-        throw new Error('El formato de datos no es válido');
+      // Si fileData es un objeto JSON stringificado con data en base64, intentar parsearlo
+      try {
+        // Verificar si es un JSON string
+        if (fileData.startsWith('{') && fileData.endsWith('}')) {
+          const fileObj = JSON.parse(fileData);
+          if (fileObj.data) {
+            fileData = fileObj.data;
+          }
+        }
+      } catch (e) {
+        // No es JSON, continuar con el string original
+        console.log("Not JSON data, continuing with raw string");
       }
       
-      // Separar el encabezado del DataURL de los datos base64
-      const parts = fileData.split(',');
-      if (parts.length !== 2) {
-        throw new Error('Formato de datos incorrecto');
+      // Para asegurarnos de que es un DataURL válido
+      if (!fileData.includes('base64') && !fileData.includes('data:')) {
+        // Si no es un DataURL pero es base64, intentar convertirlo
+        fileData = `data:application/octet-stream;base64,${fileData}`;
       }
       
-      const metadata = parts[0].match(/:(.*?);/);
-      const mimeType = metadata ? metadata[1] : 'application/octet-stream';
-      
-      // Decodificar base64
-      const byteCharacters = atob(parts[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: mimeType });
-      
-      // Crear enlace de descarga
-      const url = window.URL.createObjectURL(blob);
+      // Crear un elemento <a> para la descarga
       const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
+      a.href = fileData;
       a.download = filename || 'downloaded-file';
-      
-      // Añadir al DOM y hacer click
       document.body.appendChild(a);
       a.click();
-      
-      // Limpieza
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error al descargar el archivo:', error);
@@ -190,48 +194,98 @@ const Home = () => {
 
   // Server Communication
   useEffect(() => {
+    // Debugging para ver conexiones
+    socket.current.on('connect', () => {
+      console.log('Connected to server with socket ID:', socket.current.id);
+    });
+    
+    socket.current.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+    
+    socket.current.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
+
     socket.current.on('Id', (id) => {
+      console.log('Received ID from server:', id);
       setMyID(id);
       setShowUsernameModal(true);
     });
 
     socket.current.on('history', (history) => {
+      console.log('Received message history:', history.length, 'messages');
       setChat(history);
     });
     
     socket.current.on('file-history', (fileHistory) => {
-      // Limpiar el estado de archivos anterior y establecer el nuevo historial
-      setFiles(fileHistory);
+      console.log('Received file history:', fileHistory.length, 'files');
+      console.log('File history sample:', fileHistory[0] || 'No files');
+      setFiles(fileHistory || []);
     });
 
     socket.current.on('user-joined', (payload) => {
+      console.log('User joined:', payload.callerID);
       const peer = addPeer(payload.signal, payload.callerID);
       peersRef.current.push({ peerID: payload.callerID, peer });
     });
 
     socket.current.on('receivingReturnSignal', (payload) => {
+      console.log('Received return signal from:', payload.id);
       const item = peersRef.current.find(p => p.peerID === payload.id);
       item?.peer.signal(payload.signal);
     });
 
     socket.current.on('new-message', (message) => {
+      console.log('New message received');
       setChat(prev => [...prev, message]);
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
-      setFiles(prev => [...prev, fileData]);
+      console.log('New file received:', fileData.name);
+      // Verificar que fileData.data es un string válido
+      if (fileData && fileData.data) {
+        setFiles(prev => {
+          // Evitar duplicados verificando si ya existe un archivo con el mismo nombre y timestamp
+          const exists = prev.some(f => 
+            f.name === fileData.name && 
+            f.timestamp === fileData.timestamp &&
+            f.sender === fileData.sender
+          );
+          
+          if (exists) {
+            console.log('File already exists in state, not adding duplicate');
+            return prev;
+          }
+          
+          return [...prev, fileData];
+        });
+      } else {
+        console.error('Received invalid file data:', fileData);
+      }
     });
 
+    // Limpieza al desmontar
     return () => {
       socket.current.disconnect();
+      socket.current.off('Id');
+      socket.current.off('history');
+      socket.current.off('file-history');
+      socket.current.off('user-joined');
+      socket.current.off('receivingReturnSignal');
+      socket.current.off('new-message');
+      socket.current.off('new-file');
     };
   }, []);
 
-  // Join channel on component mount and when changing channels
+  // Join channel on component mount or when changing channels
   useEffect(() => {
     if (myID) {
+      console.log('Joining channel:', currentChannel);
       socket.current.emit('joinChannel', currentChannel);
-      // Solicitar explícitamente el historial de archivos al cambiar de canal
+      
+      // Solicitar explícitamente el historial de archivos
+      console.log('Requesting file history for channel:', currentChannel);
       socket.current.emit('getFileHistory', currentChannel);
     }
   }, [myID, currentChannel]);
@@ -277,7 +331,7 @@ return (
     {/* Archivos Compartidos */}
     {files.length > 0 && (
       <div className="mb-6">
-        <h3 className="font-semibold mb-3">Archivos compartidos</h3>
+        <h3 className="font-semibold mb-3">Archivos compartidos ({files.filter(f => f.channel === currentChannel).length})</h3>
         <div className="grid grid-cols-1 gap-3">
           {files
             .filter((f) => f.channel === currentChannel)

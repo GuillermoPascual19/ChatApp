@@ -21,6 +21,11 @@ const channels = {
 
 const users = new Map();
 
+// Función para ayudar con el debugging
+function logWithData(message, data) {
+  console.log(message, typeof data === 'object' ? JSON.stringify(data).substring(0, 100) + '...' : data);
+}
+
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
   
@@ -35,6 +40,7 @@ io.on('connection', (socket) => {
 
   // Handle username setting
   socket.on('setUsername', (username) => {
+    console.log(`User ${socket.id} setting username to ${username}`);
     if (username && username.trim()) {
       const oldUsername = users.get(socket.id)?.username;
       users.get(socket.id).username = username;
@@ -51,6 +57,7 @@ io.on('connection', (socket) => {
 
   // Channel handling
   socket.on('joinChannel', (channelName) => {
+    console.log(`User ${socket.id} joining channel ${channelName}`);
     if (!channels[channelName]) return;
 
     // Leave previous channels
@@ -79,12 +86,15 @@ io.on('connection', (socket) => {
     socket.emit('history', channels[channelName].history);
     
     // Enviar explícitamente el historial de archivos al unirse al canal
+    console.log(`Sending file history to user ${socket.id}, channel ${channelName}, ${channels[channelName].fileHistory.length} files`);
     socket.emit('file-history', channels[channelName].fileHistory);
   });
 
   // Manejar solicitud explícita de historial de archivos
   socket.on('getFileHistory', (channelName) => {
+    console.log(`User ${socket.id} requesting file history for channel ${channelName}`);
     if (channels[channelName]) {
+      console.log(`Sending ${channels[channelName].fileHistory.length} files in history to user ${socket.id}`);
       socket.emit('file-history', channels[channelName].fileHistory);
     }
   });
@@ -94,8 +104,20 @@ io.on('connection', (socket) => {
     const username = users.get(socket.id)?.username;
     let formattedMessage = message;
     
+    console.log(`Message from ${username} in channel ${channel}, has file: ${!!file}`);
+    
     // We need to handle file specifically
     if (file) {
+      console.log(`File received: ${file.name}, size: ${file.size}, data length: ${file.data ? file.data.length : 'undefined'}`);
+      
+      // Asegurarse de que el archivo tenga datos válidos antes de procesarlo
+      if (!file.data) {
+        console.error('No file data received');
+        socket.emit('error', { message: 'No file data received' });
+        return;
+      }
+      
+      // Crear el objeto de archivo con los datos recibidos
       const fileData = {
         name: file.name,
         size: file.size,
@@ -106,7 +128,7 @@ io.on('connection', (socket) => {
       };
       
       // Store file info in history
-      const fileMessage = `[${channel}] [${username}]: ${message} [Archivo ${file.name}]`;
+      const fileMessage = `[${channel}] [${username}]: ${formattedMessage} [Archivo ${file.name}]`;
       // Añadir al inicio del historial
       channels[channel].history.unshift(fileMessage);
 
@@ -114,6 +136,7 @@ io.on('connection', (socket) => {
       channels[channel].fileHistory.push(fileData);
       
       // Send file to all clients in the channel
+      console.log(`Broadcasting new file to channel ${channel}`);
       io.to(channel).emit('new-file', fileData);
       io.to(channel).emit('new-message', fileMessage, true); // true indica mensaje nuevo al inicio
     } else {
@@ -139,6 +162,7 @@ io.on('connection', (socket) => {
 
   // Agregar manejador para limpiar el historial
   socket.on('clearHistory', (channelName) => {
+    console.log(`Clearing history for channel ${channelName}`);
     if (channels[channelName]) {
       channels[channelName].history = [];
       channels[channelName].fileHistory = [];
@@ -150,6 +174,8 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     const username = users.get(socket.id)?.username;
+    console.log(`User ${socket.id} (${username}) disconnected`);
+    
     const userChannels = [...(users.get(socket.id)?.channels || [])];
     
     // Notify about user disconnection
@@ -170,6 +196,7 @@ io.on('connection', (socket) => {
         const participants = io.sockets.adapter.rooms.get(name) || new Set();
         channel.coordinator = participants.size > 0 ? [...participants][0] : null;
         if (channel.coordinator) {
+          console.log(`New coordinator for channel ${name}: ${channel.coordinator}`);
           io.to(channel.coordinator).emit('coordinator-status', true);
         }
       }
@@ -180,4 +207,9 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Agregar manejo de errores para el servidor
+server.on('error', (error) => {
+  console.error('Server error:', error);
 });
