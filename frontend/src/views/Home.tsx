@@ -115,13 +115,42 @@ const Home = () => {
     }
   };
 
+  // const downloadFile = (fileData: string, filename: string) => {
+  //   const link = document.createElement('a');
+  //   link.href = fileData;
+  //   link.download = filename || 'downloaded-file';
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  // };
   const downloadFile = (fileData: string, filename: string) => {
+    // Extraer el tipo MIME y los datos base64
+    const parts = fileData.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1];
+    const base64Data = parts[1];
+    
+    // Convertir a Blob
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mime });
+    
+    // Crear enlace de descarga
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = fileData;
-    link.download = filename || 'downloaded-file';
+    link.href = url;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    
+    // Limpieza
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
   };
 
   function toBase64(file: File): Promise<string> {

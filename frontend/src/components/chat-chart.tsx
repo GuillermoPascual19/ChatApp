@@ -27,21 +27,21 @@ const Chat: React.FC<ChatProps> = ({
   onChannelChange
 }) => {
   return (
-    <div className="chat-column w-2/3 flex flex-col h-full overflow-hidden p-4">
+    <div className="chat-container flex flex-col h-full p-4">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-800">
           Chat P2P - <span className="text-blue-600">{username || 'Anónimo'}</span>
         </h1>
       </div>
 
       {/* Selector de Canal */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-2 mb-4">
         {['general', 'auxiliar'].map((channel) => (
           <button
             key={channel}
             onClick={() => onChannelChange(channel)}
-            className={`px-4 py-2 rounded-lg transition-colors ${
+            className={`px-3 py-1 text-sm rounded-lg transition-colors ${
               currentChannel === channel
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -52,11 +52,12 @@ const Chat: React.FC<ChatProps> = ({
         ))}
       </div>
 
-      {/* Mensajes del Chat */}
-      <div className="flex-1 flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Contenedor del Chat con tamaño fijo y scroll interno */}
+      <div className="flex-1 flex flex-col border border-gray-300 rounded-lg overflow-hidden shadow-sm bg-white">
+        {/* Área de mensajes con scroll */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3" style={{ maxHeight: '60vh' }}>
           {chat.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-gray-500 py-6">
               No hay mensajes en este canal
             </div>
           ) : (
@@ -68,16 +69,16 @@ const Chat: React.FC<ChatProps> = ({
                 return (
                   <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
                     <div 
-                      className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
+                      className={`p-2 rounded-lg max-w-[80%] ${
                         isCurrentUser 
                           ? 'bg-green-100 rounded-tr-none' 
                           : 'bg-blue-100 rounded-tl-none'
                       }`}
                     >
-                      <div className="font-semibold text-sm text-gray-700">
+                      <div className="font-semibold text-xs text-gray-700">
                         {messageObj.sender}
                       </div>
-                      <div className="mt-1 text-gray-900">
+                      <div className="mt-1 text-sm text-gray-900">
                         {messageObj.text}
                       </div>
                       <div className="mt-1 text-xs text-gray-500">
@@ -86,7 +87,7 @@ const Chat: React.FC<ChatProps> = ({
                       {files[i] && (
                         <button 
                           onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                          className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
+                          className="mt-1 text-xs text-blue-600 hover:underline flex items-center"
                         >
                           Descargar archivo
                         </button>
@@ -96,7 +97,7 @@ const Chat: React.FC<ChatProps> = ({
                 );
               } catch {
                 return (
-                  <div key={i} className="p-3 bg-gray-100 rounded-lg">
+                  <div key={i} className="p-2 bg-gray-100 rounded-lg text-sm">
                     {msg}
                   </div>
                 );
