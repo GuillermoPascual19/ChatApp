@@ -35,14 +35,15 @@ html, body, #root {
 
 /* Columna izquierda - Controles (Modo Claro) */
 .controls-column {
-  width: 25%;
-  min-width: 300px;
+  width: 380px; /* Ancho aumentado */
+  min-width: 380px;
   background: #f3f4f6;
   border-right: 1px solid #d1d5db;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
   transition: background-color 0.3s ease, border-color 0.3s ease;
+  overflow-y: auto;
 }
 
 /* Columna izquierda - Controles (Modo Oscuro) */
@@ -68,6 +69,13 @@ html, body, #root {
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .controls-column {
+    width: 320px;
+    min-width: 320px;
+  }
+}
+
 @media (max-width: 768px) {
   .main-container {
     flex-direction: column;
@@ -75,7 +83,7 @@ html, body, #root {
   
   .controls-column {
     width: 100%;
-    min-width: auto;
+    min-width: 100%;
     border-right: none;
     border-bottom: 1px solid #d1d5db;
     height: auto;
@@ -90,35 +98,77 @@ html, body, #root {
   }
 }
 
-/* Estilos para las burbujas de chat - MODO CLARO */
-/* Mensajes de otros usuarios (azul) */
+/* Estilos para las burbujas de chat */
 .bg-blue-100 {
   background-color: #2563eb;
   color: white;
   border-radius: 18px 18px 18px 4px;
 }
 
-/* Mensajes propios (verde) */
+.dark .bg-blue-100 {
+  background-color: #1e40af;
+  color: white;
+}
+
 .bg-green-100 {
   background-color: #10b981;
   color: white;
   border-radius: 18px 18px 4px 18px;
 }
 
-/* Estilos para las burbujas de chat - MODO OSCURO */
-/* Mensajes de otros usuarios (azul oscuro) */
-.dark .bg-blue-100 {
-  background-color: #1e40af;
-  color: white;
-}
-
-/* Mensajes propios (verde oscuro) */
 .dark .bg-green-100 {
   background-color: #047857;
   color: white;
 }
 
-/* Texto en mensajes */
+/* Botones de canal - Estilo Neutral */
+.channels-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.channel-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.dark .channel-btn {
+  border-color: #4b5563;
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.channel-btn.active {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+  font-weight: 600;
+}
+
+.dark .channel-btn.active {
+  background-color: #374151;
+  border-color: #6b7280;
+}
+
+.channel-btn:hover {
+  background-color: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+.dark .channel-btn:hover {
+  background-color: #374151;
+}
+
+/* Text styles */
 .text-gray-700 {
   color: #374151;
 }
@@ -135,7 +185,7 @@ html, body, #root {
   color: #9ca3af;
 }
 
-/* Tamaños de mensajes */
+/* Sizing */
 .max-w-\[80\%\] {
   max-width: 80%;
 }
@@ -144,7 +194,7 @@ html, body, #root {
   min-width: 20%;
 }
 
-/* Alineación de mensajes */
+/* Alignment */
 .ml-auto {
   margin-left: auto;
 }
@@ -153,12 +203,12 @@ html, body, #root {
   margin-right: auto;
 }
 
-/* Espaciado */
+/* Spacing */
 .space-y-4 > * + * {
   margin-top: 1rem;
 }
 
-/* Bordes redondeados */
+/* Borders */
 .rounded-tr-none {
   border-top-right-radius: 0;
 }
@@ -172,7 +222,7 @@ html, body, #root {
   padding: 0.75rem;
 }
 
-/* Estilo para los mensajes de error */
+/* Error messages */
 .bg-gray-100 {
   background-color: #f3f4f6;
   color: #1f2937;
@@ -183,7 +233,7 @@ html, body, #root {
   color: #f3f4f6;
 }
 
-/* Textos generales */
+/* General text */
 .text-gray-800 {
   color: #1f2937;
 }
@@ -200,21 +250,24 @@ html, body, #root {
   color: #d1d5db;
 }
 
-/* Transiciones generales */
+/* Transitions */
 .main-container,
 .main-container * {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
-/* Scrollbar - Modo Claro */
 ::-webkit-scrollbar-track {
   background: #e5e7eb;
   border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -222,24 +275,15 @@ html, body, #root {
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-/* Scrollbar - Modo Oscuro */
-.dark ::-webkit-scrollbar-track {
-  background: #1f2937;
-}
-
 .dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
 
-/* Estilos para el botón de dark mode toggle */
+/* Dark mode toggle */
 .dark-mode-toggle {
   position: fixed;
   bottom: 1.5rem;
@@ -264,12 +308,7 @@ html, body, #root {
   transform: scale(1.05);
 }
 
-.dark-mode-toggle:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
-}
-
-/* Estilos para inputs y botones */
+/* Inputs and buttons */
 input, button {
   transition: all 0.3s ease;
 }
@@ -286,39 +325,25 @@ input {
   color: white;
 }
 
-button:not(.dark-mode-toggle) {
+button:not(.dark-mode-toggle):not(.channel-btn) {
   background-color: #3b82f6;
   color: white;
 }
 
-.dark button:not(.dark-mode-toggle) {
+.dark button:not(.dark-mode-toggle):not(.channel-btn) {
   background-color: #1d4ed8;
 }
 
-button:hover:not(.dark-mode-toggle) {
+button:hover:not(.dark-mode-toggle):not(.channel-btn) {
   background-color: #2563eb;
 }
 
-.dark button:hover:not(.dark-mode-toggle) {
-  background-color: #1e40af;
-}
-
-/* Estilos para el modal */
-.modal-container {
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.modal-content {
-  background-color: white;
-}
-
-.dark .modal-content {
-  background-color: #1f2937;
-}
-
-/* Estilos para archivos compartidos */
+/* File items */
 .file-item {
   background-color: #e0e7ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dark .file-item {
@@ -333,11 +358,28 @@ button:hover:not(.dark-mode-toggle) {
   background-color: #1e40af;
 }
 
-/* Estilos para la previsualización de archivos */
+/* File preview */
 .file-preview {
   background-color: #e0f2fe;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dark .file-preview {
   background-color: #0c4a6e;
+}
+
+/* Text truncation */
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Message container */
+.message-container {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }

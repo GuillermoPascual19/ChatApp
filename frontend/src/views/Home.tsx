@@ -520,7 +520,7 @@ return (
         </div>
 
         {/* Selector de Canal */}
-        <div className="flex gap-3 mb-6">
+        <div className="channels-container">
           {['general', 'auxiliar'].map((channel) => (
             <button
               key={channel}
@@ -528,10 +528,8 @@ return (
                 setCurrentChannel(channel);
                 socket.current.emit('joinChannel', channel);
               }}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                currentChannel === channel
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+              className={`channel-btn ${
+                currentChannel === channel ? 'active' : ''
               }`}
             >
               #{channel}
@@ -539,6 +537,7 @@ return (
           ))}
         </div>
 
+        {/* Estilos para el selector de canal */}
         {/* Mensajes del Chat */}
         <div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
           {chat.length === 0 ? (
