@@ -190,411 +190,213 @@ const Home = () => {
     }
   }, []);
 
-//   return (
-//     <div className="main-container">
-//       {/* COLUMNA IZQUIERDA - CONTROLES */}
-//       <div className="controls-column">
-//         {/* Modal Usuario */}
-//         {showUsernameModal && (
-//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//             <div className="bg-white p-6 rounded-lg shadow-lg w-80">
-//               <h2 className="text-xl font-bold mb-4">Elige tu nombre</h2>
-//               <input
-//                 type="text"
-//                 value={tempUsername}
-//                 onChange={(e) => setTempUsername(e.target.value)}
-//                 placeholder="Nombre de usuario"
-//                 className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500"
-//               />
-//               <button
-//                 onClick={handleSetUsername}
-//                 className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
-//               >
-//                 Confirmar
-//               </button>
-//             </div>
-//           </div>
-//         )}
+  return (
+      <div className={`main-container ${darkMode ? 'dark' : ''}`}>
+        {/* Botón de toggle para dark mode */}
+        <button 
+          onClick={toggleDarkMode}
+          className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
+          aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        >
+          {darkMode ? <Sun/> : <Moon />}
+        </button>
 
-//         {/* Archivos Compartidos */}
-//         {files.length > 0 && (
-//           <div className="mb-6">
-//             <h3 className="font-semibold mb-3">Archivos compartidos</h3>
-//             <div className="grid grid-cols-1 gap-2">
-//               {files
-//                 .filter((f) => f.channel === currentChannel)
-//                 .map((file, i) => (
-//                   <div
-//                     key={i}
-//                     onClick={() => downloadFile(file.data, `file-${i}`)}
-//                     className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors flex items-center"
-//                   >
-//                     <span className="text-sm flex-1">Archivo de {file.sender}</span>
-//                     <span className="text-xs text-gray-500">
-//                       {new Date(file.timestamp).toLocaleTimeString()}
-//                     </span>
-//                   </div>
-//                 ))}
-//             </div>
-//           </div>
-//         )}
-
-//         {/* Entrada de Mensaje */}
-//         <div className="flex-1">
-//           <h2 className="text-lg font-semibold mb-4">Enviar Mensaje</h2>
-//           <div className="space-y-4">
-//             <input
-//               type="text"
-//               value={message}
-//               onChange={(e) => setMessage(e.target.value)}
-//               placeholder="Escribe tu mensaje..."
-//               className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-//               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-//             />
-            
-//             <div className="flex gap-2">
-//               <input
-//                 type="file"
-//                 onChange={handleFile}
-//                 className="hidden"
-//                 id="fileInput"
-//               />
-//               <label
-//                 htmlFor="fileInput"
-//                 className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
-//                   file ? 'bg-green-100 text-green-600' : 'bg-gray-200 hover:bg-gray-300'
-//                 }`}
-//               >
-//                 {file ? 'Archivo listo' : 'Seleccionar archivo'}
-//               </label>
-//               <button
-//                 onClick={handleSendMessage}
-//                 disabled={!message && !file}
-//                 className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
-//               >
-//                 Enviar
-//               </button>
-//             </div>
-//           </div>
-
-//           {/* Previsualización Archivo */}
-//           {file && (
-//             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-//               <div className="flex justify-between items-center">
-//                 <span className="text-sm truncate">{file.name}</span>
-//                 <button 
-//                   onClick={() => setFile(null)}
-//                   className="text-red-500 hover:text-red-700"
-//                 >
-//                   ×
-//                 </button>
-//               </div>
-//             </div>
-//           )}
-//         </div>
-
-//         {/* Información Usuario */}
-//         <div className="mt-auto pt-4 border-t border-gray-200">
-//           <div className="bg-white p-3 rounded-lg shadow-sm">
-//             <p className="font-semibold">{username || 'Anónimo'}</p>
-//             <p className="text-sm text-gray-600">Canal: #{currentChannel}</p>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* COLUMNA DERECHA - CHAT */}
-//       <div className="chat-column">
-//         {/* Header */}
-//         <div className="mb-6">
-//           <h1 className="text-2xl font-bold text-gray-800">
-//             Chat P2P - <span className="text-blue-600">{username || 'Anónimo'}</span>
-//           </h1>
-//         </div>
-
-//         {/* Selector de Canal */}
-//         <div className="flex gap-3 mb-6">
-//           {['general', 'auxiliar'].map((channel) => (
-//             <button
-//               key={channel}
-//               onClick={() => {
-//                 setCurrentChannel(channel);
-//                 socket.current.emit('joinChannel', channel);
-//               }}
-//               className={`px-4 py-2 rounded-lg transition-colors ${
-//                 currentChannel === channel
-//                   ? 'bg-blue-500 text-white'
-//                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-//               }`}
-//             >
-//               #{channel}
-//             </button>
-//           ))}
-//         </div>
-
-//         {/* Mensajes del Chat */}
-//         <div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
-//           {chat.length === 0 ? (
-//             <div className="text-center text-gray-500 py-8">
-//               No hay mensajes en este canal
-//             </div>
-//           ) : (
-//             chat.map((msg, i) => {
-//               try {
-//                 const messageObj = JSON.parse(msg);
-//                 const isCurrentUser = messageObj.sender === username;
-                
-//                 return (
-//                   <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-//                     <div 
-//                       className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
-//                         isCurrentUser 
-//                           ? 'bg-green-100 rounded-tr-none' 
-//                           : 'bg-blue-100 rounded-tl-none'
-//                       }`}
-//                     >
-//                       <div className="font-semibold text-sm text-gray-700">
-//                         {messageObj.sender}
-//                       </div>
-//                       <div className="mt-1 text-gray-900">
-//                         {messageObj.text}
-//                       </div>
-//                       <div className="mt-1 text-xs text-gray-500">
-//                         {new Date(messageObj.timestamp).toLocaleTimeString()}
-//                       </div>
-//                       {files[i] && (
-//                         <button 
-//                           onClick={() => downloadFile(files[i].data, `file-${i}`)}
-//                           className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
-//                         >
-//                           <span className="mr-1">📎</span>
-//                           Descargar archivo
-//                         </button>
-//                       )}
-//                     </div>
-//                   </div>
-//                 );
-//               } catch {
-//                 return (
-//                   <div key={i} className="p-3 bg-gray-100 rounded-lg">
-//                     {msg}
-//                   </div>
-//                 );
-//               }
-//             })
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Home;
-return (
-    <div className={`main-container ${darkMode ? 'dark' : ''}`}>
-      {/* Botón de toggle para dark mode */}
-      <button 
-        onClick={toggleDarkMode}
-        className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
-        aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      >
-        {darkMode ? <Sun/> : <Moon />}
-      </button>
-
-      {/* COLUMNA IZQUIERDA - CONTROLES */}
-      <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
-        {/* Modal Usuario */}
-        {showUsernameModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
-              <h2 className="text-xl font-bold mb-4 dark:text-white">Elige tu nombre</h2>
-              <input
-                type="text"
-                value={tempUsername}
-                onChange={(e) => setTempUsername(e.target.value)}
-                placeholder="Nombre de usuario"
-                className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
-              />
-              <button
-                onClick={handleSetUsername}
-                className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Archivos Compartidos */}
-        {files.length > 0 && (
-          <div className="mb-6">
-            <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {files
-                .filter((f) => f.channel === currentChannel)
-                .map((file, i) => (
-                  <div
-                    key={i}
-                    onClick={() => downloadFile(file.data, `file-${i}`)}
-                    className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
-                  >
-                    <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(file.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Entrada de Mensaje */}
-        <div className="flex-1">
-          <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escribe tu mensaje..."
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            />
-            
-            <div className="flex gap-2">
-              <input
-                type="file"
-                onChange={handleFile}
-                className="hidden"
-                id="fileInput"
-              />
-              <label
-                htmlFor="fileInput"
-                className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
-                  file ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'
-                }`}
-              >
-                {file ? 'Archivo listo' : 'Seleccionar archivo'}
-              </label>
-              <button
-                onClick={handleSendMessage}
-                disabled={!message && !file}
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-500"
-              >
-                Enviar
-              </button>
-            </div>
-          </div>
-
-          {/* Previsualización Archivo */}
-          {file && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
-                <button 
-                  onClick={() => setFile(null)}
-                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+        {/* COLUMNA IZQUIERDA - CONTROLES */}
+        <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
+          {/* Modal Usuario */}
+          {showUsernameModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">Elige tu nombre</h2>
+                <input
+                  type="text"
+                  value={tempUsername}
+                  onChange={(e) => setTempUsername(e.target.value)}
+                  placeholder="Nombre de usuario"
+                  className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                />
+                <button
+                  onClick={handleSetUsername}
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
                 >
-                  <X />
+                  Confirmar
                 </button>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Información Usuario */}
-        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
-            <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Canal: #{currentChannel}</p>
+          {/* Archivos Compartidos */}
+          {files.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {files
+                  .filter((f) => f.channel === currentChannel)
+                  .map((file, i) => (
+                    <div
+                      key={i}
+                      onClick={() => downloadFile(file.data, `file-${i}`)}
+                      className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
+                    >
+                      <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(file.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Entrada de Mensaje */}
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Escribe tu mensaje..."
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              />
+              
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  onChange={handleFile}
+                  className="hidden"
+                  id="fileInput"
+                />
+                <label
+                  htmlFor="fileInput"
+                  className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
+                    file ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'
+                  }`}
+                >
+                  {file ? 'Archivo listo' : 'Seleccionar archivo'}
+                </label>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!message && !file}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-500"
+                >
+                  Enviar
+                </button>
+              </div>
+            </div>
+
+            {/* Previsualización Archivo */}
+            {file && (
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
+                  <button 
+                    onClick={() => setFile(null)}
+                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    <X />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Información Usuario */}
+          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+              <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Canal: #{currentChannel}</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* COLUMNA DERECHA - CHAT */}
-      <div className="chat-column dark:bg-gray-900">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-            Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
-          </h1>
-        </div>
+        {/* COLUMNA DERECHA - CHAT */}
+        <div className="chat-column dark:bg-gray-900">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+              Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
+            </h1>
+          </div>
 
-        {/* Selector de Canal */}
-        <div className="channels-container">
-          {['general', 'auxiliar'].map((channel) => (
-            <button
-              key={channel}
-              onClick={() => {
-                setCurrentChannel(channel);
-                socket.current.emit('joinChannel', channel);
-              }}
-              className={`channel-btn ${
-                currentChannel === channel ? 'active' : ''
-              }`}
-            >
-              #{channel}
-            </button>
-          ))}
-        </div>
+          {/* Selector de Canal */}
+          <div className="channels-container">
+            {['general', 'auxiliar'].map((channel) => (
+              <button
+                key={channel}
+                onClick={() => {
+                  setCurrentChannel(channel);
+                  socket.current.emit('joinChannel', channel);
+                }}
+                className={`channel-btn ${
+                  currentChannel === channel ? 'active' : ''
+                }`}
+              >
+                #{channel}
+              </button>
+            ))}
+          </div>
 
-        {/* Estilos para el selector de canal */}
-        {/* Mensajes del Chat */}
-<div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
-  {chat.length === 0 ? (
-    <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-      No hay mensajes en este canal
-    </div>
-  ) : (
-    chat.map((msg, i) => {
-      try {
-        const messageObj = JSON.parse(msg);
-        const isCurrentUser = messageObj.sender === username;
-        
-        return (
-          <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-            <div 
-              className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
-                isCurrentUser 
-                  ? 'bg-green-100 dark:bg-green-800 rounded-tr-none' 
-                  : 'bg-blue-100 dark:bg-blue-800 rounded-tl-none'
-              }`}
-            >
-              <div className="flex items-baseline gap-2">
-                <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">
-                  {messageObj.sender}:
-                </span>
-                <span className="text-gray-900 dark:text-gray-100">
-                  {messageObj.text}
-                </span>
-              </div>
-              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {new Date(messageObj.timestamp).toLocaleTimeString()}
-              </div>
-              {files[i] && (
-                <button 
-                  onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                  className="mt-2 text-sm text-blue-600 hover:underline flex items-center dark:text-blue-400"
-                >
-                  <Paperclip/>
-                  Descargar archivo
-                </button>
+          {/* Área de mensajes con scroll independiente */}
+          <div className="message-area">
+            <div className="chat-messages">
+              {chat.length === 0 ? (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  No hay mensajes en este canal
+                </div>
+              ) : (
+                chat.map((msg, i) => {
+                  try {
+                    const messageObj = JSON.parse(msg);
+                    const isCurrentUser = messageObj.sender === username;
+                    
+                    return (
+                      <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-3`}>
+                        <div 
+                          className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
+                            isCurrentUser 
+                              ? 'bg-green-100 dark:bg-green-800 rounded-tr-none' 
+                              : 'bg-blue-100 dark:bg-blue-800 rounded-tl-none'
+                          }`}
+                        >
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">
+                              {messageObj.sender}:
+                            </span>
+                            <span className="text-gray-900 dark:text-gray-100">
+                              {messageObj.text}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(messageObj.timestamp).toLocaleTimeString()}
+                          </div>
+                          {files[i] && (
+                            <button 
+                              onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                              className="mt-2 text-sm text-blue-600 hover:underline flex items-center dark:text-blue-400"
+                            >
+                              <Paperclip/>
+                              Descargar archivo
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  } catch {
+                    return (
+                      <div key={i} className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200 mb-3">
+                        {msg}
+                      </div>
+                    );
+                  }
+                })
               )}
             </div>
           </div>
-        );
-      } catch {
-        return (
-          <div key={i} className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200">
-            {msg}
-          </div>
-        );
-      }
-    })
-  )}
-</div>
+        </div>
       </div>
-    </div>
-  );
+    );
 };
 
 export default Home;

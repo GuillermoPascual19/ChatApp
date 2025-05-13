@@ -397,3 +397,24 @@ button:hover:not(.dark-mode-toggle):not(.channel-btn) {
 .message-text {
   word-break: break-word;
 }
+
+.chat-container {
+  height: calc(100vh - 200px); /* Ajusta según tus necesidades */
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  scroll-behavior: smooth;
+}
+
+/* Asegura que el área de mensajes ocupe el espacio disponible */
+.message-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Importante para el scroll */
+}
