@@ -96,7 +96,7 @@ io.on('connection', (socket) => {
       };
       
       // Store file info in history
-      const fileMessage = `[${channel}] [${username}]: ${message} [Archivo adjunto]`;
+      const fileMessage = `[${channel}] [${username}]: ${message} [Archivo ${file.name}]`;
       // Añadir al inicio del historial
       channels[channel].history.unshift(fileMessage);
       
