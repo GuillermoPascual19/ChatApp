@@ -99,6 +99,8 @@ io.on('connection', (socket) => {
       const fileMessage = `[${channel}] [${username}]: ${message} [Archivo ${file.name}]`;
       // Añadir al inicio del historial
       channels[channel].history.unshift(fileMessage);
+
+      channels[channel].fileHistory.push(fileData);
       
       // Send file to all clients in the channel
       io.to(channel).emit('new-file', fileData, true); // true indica archivo nuevo al inicio

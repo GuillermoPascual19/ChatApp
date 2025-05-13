@@ -147,6 +147,9 @@ const Home = () => {
     socket.current.on('history', (history) => {
       setChat(history);
     });
+    socket.current.on('file-history', (fileHistory) => {
+      setFiles(prevFiles => [...prevFiles, ...fileHistory]);
+    });
 
     socket.current.on('user-joined', (payload) => {
       const peer = addPeer(payload.signal, payload.callerID);
