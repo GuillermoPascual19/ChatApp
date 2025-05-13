@@ -3,8 +3,6 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,46 +20,49 @@ html, body, #root {
   width: 100%;
 }
 
-/* Layout principal */
+/* Layout principal - Modo Claro */
 .main-container {
   display: flex;
   height: 100vh;
-  background-color: #f3f4f6;
+  background-color: #e5e7eb;
   transition: background-color 0.3s ease;
 }
 
+/* Layout principal - Modo Oscuro */
 .main-container.dark {
   background-color: #111827;
 }
 
-/* Columna izquierda - Controles */
+/* Columna izquierda - Controles (Modo Claro) */
 .controls-column {
   width: 25%;
   min-width: 300px;
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  background: #f3f4f6;
+  border-right: 1px solid #d1d5db;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
+/* Columna izquierda - Controles (Modo Oscuro) */
 .dark .controls-column {
   background: #1f2937;
   border-right-color: #374151;
 }
 
-/* Columna derecha - Chat */
+/* Columna derecha - Chat (Modo Claro) */
 .chat-column {
   flex: 1;
   min-width: 0;
-  background: white;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
   transition: background-color 0.3s ease;
 }
 
+/* Columna derecha - Chat (Modo Oscuro) */
 .dark .chat-column {
   background: #111827;
 }
@@ -76,7 +77,7 @@ html, body, #root {
     width: 100%;
     min-width: auto;
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #d1d5db;
     height: auto;
   }
 
@@ -89,25 +90,52 @@ html, body, #root {
   }
 }
 
-/* Estilos para las burbujas de chat */
+/* Estilos para las burbujas de chat - MODO CLARO */
+/* Mensajes de otros usuarios (azul) */
 .bg-blue-100 {
-  background-color: #dbeafe;
+  background-color: #2563eb;
+  color: white;
   border-radius: 18px 18px 18px 4px;
 }
 
-.dark .bg-blue-100 {
-  background-color: #1e3a8a;
-}
-
+/* Mensajes propios (verde) */
 .bg-green-100 {
-  background-color: #d1fae5;
+  background-color: #10b981;
+  color: white;
   border-radius: 18px 18px 4px 18px;
 }
 
-.dark .bg-green-100 {
-  background-color: #166534;
+/* Estilos para las burbujas de chat - MODO OSCURO */
+/* Mensajes de otros usuarios (azul oscuro) */
+.dark .bg-blue-100 {
+  background-color: #1e40af;
+  color: white;
 }
 
+/* Mensajes propios (verde oscuro) */
+.dark .bg-green-100 {
+  background-color: #047857;
+  color: white;
+}
+
+/* Texto en mensajes */
+.text-gray-700 {
+  color: #374151;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+
+.text-gray-500 {
+  color: #6b7280;
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+/* Tamaños de mensajes */
 .max-w-\[80\%\] {
   max-width: 80%;
 }
@@ -147,31 +175,29 @@ html, body, #root {
 /* Estilo para los mensajes de error */
 .bg-gray-100 {
   background-color: #f3f4f6;
+  color: #1f2937;
 }
 
 .dark .bg-gray-100 {
   background-color: #374151;
-}
-
-/* Textos en dark mode */
-.dark {
   color: #f3f4f6;
 }
 
-.dark .text-gray-600 {
-  color: #d1d5db;
-}
-
-.dark .text-gray-500 {
-  color: #9ca3af;
-}
-
-.dark .text-gray-700 {
-  color: #e5e7eb;
+/* Textos generales */
+.text-gray-800 {
+  color: #1f2937;
 }
 
 .dark .text-gray-800 {
   color: #f9fafb;
+}
+
+.text-gray-600 {
+  color: #4b5563;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db;
 }
 
 /* Transiciones generales */
@@ -185,26 +211,28 @@ html, body, #root {
   width: 8px;
 }
 
+/* Scrollbar - Modo Claro */
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #e5e7eb;
   border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: #374151;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #9ca3af;
   border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Scrollbar - Modo Oscuro */
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
 }
 
 .dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
@@ -239,4 +267,77 @@ html, body, #root {
 .dark-mode-toggle:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* Estilos para inputs y botones */
+input, button {
+  transition: all 0.3s ease;
+}
+
+input {
+  background-color: white;
+  border: 1px solid #d1d5db;
+  color: #1f2937;
+}
+
+.dark input {
+  background-color: #1f2937;
+  border-color: #4b5563;
+  color: white;
+}
+
+button:not(.dark-mode-toggle) {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.dark button:not(.dark-mode-toggle) {
+  background-color: #1d4ed8;
+}
+
+button:hover:not(.dark-mode-toggle) {
+  background-color: #2563eb;
+}
+
+.dark button:hover:not(.dark-mode-toggle) {
+  background-color: #1e40af;
+}
+
+/* Estilos para el modal */
+.modal-container {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  background-color: white;
+}
+
+.dark .modal-content {
+  background-color: #1f2937;
+}
+
+/* Estilos para archivos compartidos */
+.file-item {
+  background-color: #e0e7ff;
+}
+
+.dark .file-item {
+  background-color: #1e3a8a;
+}
+
+.file-item:hover {
+  background-color: #c7d2fe;
+}
+
+.dark .file-item:hover {
+  background-color: #1e40af;
+}
+
+/* Estilos para la previsualización de archivos */
+.file-preview {
+  background-color: #e0f2fe;
+}
+
+.dark .file-preview {
+  background-color: #0c4a6e;
 }
