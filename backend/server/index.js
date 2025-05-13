@@ -84,40 +84,35 @@ io.on('connection', (socket) => {
 
   // Message handling
   socket.on('message', ({ message, channel, file }) => {
-    const username = users.get(socket.id)?.username;
-    let formattedMessage = message;
-    
-    // We need to handle file specifically
-    if (file) {
-      const fileData = {
-        name: file.name,
-        size: file.size,
-        data: file,
-        sender: username,
-        timestamp: new Date().toISOString(),
-        channel: channel
-      };
-      
-      // Store file info in history
-      const fileMessage = `[${channel}] [${username}]: ${message} [Archivo ${file.name}]`;
-      // Añadir al inicio del historial
-      channels[channel].history.unshift(fileMessage);
-
-      channels[channel].fileHistory.push(fileData);
-      
-      // Send file to all clients in the channel
-      io.to(channel).emit('new-file', fileData, true); // true indica archivo nuevo al inicio
-    } else {
-      // Regular text message
-      // Añadir al inicio del historial
-      channels[channel].history.unshift(formattedMessage);
-      if (channels[channel].history.length > 100) {
-        channels[channel].history.pop(); // Eliminar el mensaje más antiguo (ahora el último)
-      }
-      
-      io.to(channel).emit('new-message', formattedMessage, true); // true indica mensaje nuevo al inicio
+  const username = users.get(socket.id)?.username;
+  
+  if (file) {
+    // Verificar que los datos del archivo estén completos
+    if (!file.data || !file.name) {
+      console.error('Datos de archivo incompletos');
+      return;
     }
-  });
+
+    const fileData = {
+      name: file.name,
+      size: file.size,
+      data: file.data, // Solo los datos base64
+      sender: username,
+      timestamp: new Date().toISOString(),
+      channel: channel,
+      mimeType: file.mimeType || 'application/octet-stream' // Añadir tipo MIME
+    };
+    
+    const fileMessage = `[${channel}] [${username}]: ${message} [Archivo ${file.name}]`;
+    channels[channel].history.unshift(fileMessage);
+    channels[channel].fileHistory.push(fileData);
+    
+    io.to(channel).emit('new-file', fileData);
+  } else {
+    channels[channel].history.unshift(message);
+    io.to(channel).emit('new-message', message);
+  }
+});
 
   // WebRTC signaling
   socket.on('sendSignal', ({ userToSignal, callerID, signal }) => {

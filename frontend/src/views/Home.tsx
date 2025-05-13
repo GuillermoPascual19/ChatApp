@@ -122,14 +122,51 @@ const Home = () => {
     }
   };
 
+  // const downloadFile = (fileData: string, filename: string) => {
+  //   const link = document.createElement('a');
+  //   link.href = fileData;
+  //   link.download = filename || 'downloaded-file';
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  // };
   const downloadFile = (fileData: string, filename: string) => {
-    const link = document.createElement('a');
-    link.href = fileData;
-    link.download = filename || 'downloaded-file';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  try {
+    // Separar el encabezado del DataURL de los datos base64
+    const parts = fileData.split(',');
+    const metadata = parts[0].match(/:(.*?);/);
+    const mimeType = metadata ? metadata[1] : 'application/octet-stream';
+    
+    // Decodificar base64
+    const byteCharacters = atob(parts[1]);
+    const byteNumbers = new Array(byteCharacters.length);
+    
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+    
+    // Crear enlace de descarga
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    
+    // Añadir al DOM y hacer click
+    document.body.appendChild(a);
+    a.click();
+    
+    // Limpieza
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error('Error al descargar el archivo:', error);
+    alert('Error al descargar el archivo. Por favor, inténtalo de nuevo.');
+  }
+};
 
   function toBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -216,6 +253,18 @@ return (
       </div>
     )}
 
+    {/* Boton para borrar historial de mensajes */}
+    <button
+      onClick={() => {
+        setChat([]);
+        setFiles([]);
+        socket.current.emit('clearHistory', currentChannel);
+      }}
+      className="mb-4 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600"
+    >
+      Borrar historial
+    </button>
+    
     {/* Archivos Compartidos */}
     {files.length > 0 && (
       <div className="mb-6">
