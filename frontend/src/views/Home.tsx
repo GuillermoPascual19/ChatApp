@@ -63,12 +63,19 @@ const Home = () => {
   const handleSendMessage = async () => {
     if (!message && !file) return;
 
-    const formattedMessage = JSON.stringify({
+    const messageData = {
       channel: currentChannel,
       sender: username || 'Anónimo',
       text: message,
-      timestamp: new Date().toISOString()
-    });
+      timestamp: new Date().toISOString(),
+      file: file ? {
+        name: file.name,
+        size: file.size
+      } : null
+    };
+
+    const formattedMessage = JSON.stringify(messageData);
+
     // Send to peers
     peersRef.current.forEach(({ peer }) => {
       peer.send(formattedMessage);
@@ -115,42 +122,13 @@ const Home = () => {
     }
   };
 
-  // const downloadFile = (fileData: string, filename: string) => {
-  //   const link = document.createElement('a');
-  //   link.href = fileData;
-  //   link.download = filename || 'downloaded-file';
-  //   document.body.appendChild(link);
-  //   link.click();
-  //   document.body.removeChild(link);
-  // };
   const downloadFile = (fileData: string, filename: string) => {
-    // Extraer el tipo MIME y los datos base64
-    const parts = fileData.split(',');
-    const mime = parts[0].match(/:(.*?);/)?.[1];
-    const base64Data = parts[1];
-    
-    // Convertir a Blob
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mime });
-    
-    // Crear enlace de descarga
-    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
+    link.href = fileData;
+    link.download = filename || 'downloaded-file';
     document.body.appendChild(link);
     link.click();
-    
-    // Limpieza
-    setTimeout(() => {
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    }, 100);
+    document.body.removeChild(link);
   };
 
   function toBase64(file: File): Promise<string> {
@@ -213,135 +191,137 @@ const Home = () => {
   }, [myID]);
 
 return (
-  <div className="main-container h-screen flex">
-    {/* COLUMNA IZQUIERDA - CONTROLES */}
-    <div className="controls-column w-1/3 flex flex-col p-4 overflow-auto">
-      {/* Modal Usuario */}
-      {showUsernameModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80">
-            <h2 className="text-xl font-bold mb-4">Elige tu nombre</h2>
-            <input
-              type="text"
-              value={tempUsername}
-              onChange={(e) => setTempUsername(e.target.value)}
-              placeholder="Nombre de usuario"
-              className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSetUsername}
-              className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
-            >
-              Confirmar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Archivos Compartidos */}
-      {files.length > 0 && (
-        <div className="mb-6">
-          <h3 className="font-semibold mb-3">Archivos compartidos</h3>
-          <div className="grid grid-cols-1 gap-3">
-            {files
-              .filter((f) => f.channel === currentChannel)
-              .map((file, i) => (
-                <div
-                  key={i}
-                  onClick={() => downloadFile(file.data, file.name)}
-                  className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
-                >
-                  <span className="text-sm">Archivo: {file.name}</span>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-xs text-gray-500">De: {file.sender}</span>
-                    <span className="text-xs text-gray-500">
-                      {(file.size / 1024).toFixed(1)} KB
-                    </span>
-                  </div>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    {new Date(file.timestamp).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Entrada de Mensaje */}
-      <div className="flex-1">
-        <h2 className="text-lg font-semibold mb-4">Enviar Mensaje</h2>
-        <div className="space-y-4">
+  <div className="main-container h-screen flex p-4 gap-4 bg-gray-50">
+  {/* COLUMNA IZQUIERDA - CONTROLES */}
+  <div className="controls-column w-1/3 flex flex-col p-4 bg-white rounded-lg shadow-sm overflow-auto">
+    {/* Modal Usuario */}
+    {showUsernameModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg w-80">
+          <h2 className="text-xl font-bold mb-4">Elige tu nombre</h2>
           <input
             type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Escribe tu mensaje..."
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            value={tempUsername}
+            onChange={(e) => setTempUsername(e.target.value)}
+            placeholder="Nombre de usuario"
+            className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500"
           />
+          <button
+            onClick={handleSetUsername}
+            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    )}
 
-          <div className="flex gap-2">
-            <input
-              type="file"
-              onChange={handleFile}
-              className="hidden"
-              id="fileInput"
-            />
-            <label
-              htmlFor="fileInput"
-              className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
-                file ? 'bg-green-100 text-green-600' : 'bg-gray-200 hover:bg-gray-300'
-              }`}
+    {/* Archivos Compartidos */}
+    {files.length > 0 && (
+      <div className="mb-6">
+        <h3 className="font-semibold mb-3">Archivos compartidos</h3>
+        <div className="grid grid-cols-1 gap-3">
+          {files
+            .filter((f) => f.channel === currentChannel)
+            .map((file, i) => (
+              <div
+                key={i}
+                onClick={() => downloadFile(file.data, file.name)}
+                className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+              >
+                <div className="flex justify-between mt-1">
+                  <span className="text-xs text-gray-500">Archivo de: {file.sender}</span>
+                  <span className="text-xs text-gray-500">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </span>
+                </div>
+                <span className="block text-xs text-gray-500 mt-1">
+                  {new Date(file.timestamp).toLocaleString()}
+                </span>
+              </div>
+            ))}
+        </div>
+      </div>
+    )}
+
+    {/* Entrada de Mensaje */}
+    <div className="flex-1">
+      <h2 className="text-lg font-semibold mb-4">Enviar Mensaje</h2>
+      <div className="space-y-4">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Escribe tu mensaje..."
+          className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+        />
+
+        <div className="flex gap-2">
+          <input
+            type="file"
+            onChange={handleFile}
+            className="hidden"
+            id="fileInput"
+          />
+          <label
+            htmlFor="fileInput"
+            className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
+              file ? 'bg-green-100 text-green-600' : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+          >
+            {file ? 'Archivo listo' : 'Seleccionar archivo'}
+          </label>
+          <button
+            onClick={handleSendMessage}
+            disabled={!message && !file}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+          >
+            Enviar
+          </button>
+        </div>
+      </div>
+
+      {/* Previsualización Archivo */}
+      {file && (
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+          <div className="flex justify-between items-center">
+            <span className="text-sm truncate">{file.name}</span>
+            <button 
+              onClick={() => setFile(null)}
+              className="text-red-500 hover:text-red-700"
             >
-              {file ? 'Archivo listo' : 'Seleccionar archivo'}
-            </label>
-            <button
-              onClick={handleSendMessage}
-              disabled={!message && !file}
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
-            >
-              Enviar
+              ✕
             </button>
           </div>
         </div>
-
-        {/* Previsualización Archivo */}
-        {file && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="text-sm truncate">{file.name}</span>
-              <button 
-                onClick={() => setFile(null)}
-                className="text-red-500 hover:text-red-700"
-              >
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Información Usuario */}
-      <div className="mt-auto pt-4 border-t border-gray-200">
-        <div className="bg-white p-3 rounded-lg shadow-sm">
-          <p className="font-semibold">{username || 'Anónimo'}</p>
-          <p className="text-sm text-gray-600">Canal: #{currentChannel}</p>
-        </div>
-      </div>
+      )}
     </div>
 
-  {/* COLUMNA DERECHA - CHAT */}
-  <Chat 
-    chat={chat}
-    username={username}
-    files={files}
-    currentChannel={currentChannel}
-    downloadFile={downloadFile}
-    onChannelChange={(channel) => {
-      setCurrentChannel(channel);
-      socket.current.emit('joinChannel', channel);
-    }}
-  />
+    {/* Información Usuario */}
+    <div className="mt-auto pt-4 border-t border-gray-200">
+      <div className="bg-white p-3 rounded-lg shadow-sm">
+        <p className="font-semibold">{username || 'Anónimo'}</p>
+        <p className="text-sm text-gray-600">Canal: #{currentChannel}</p>
+      </div>
+    </div>
   </div>
+
+  {/* COLUMNA DERECHA - CHAT */}
+  <div className="w-2/3 pl-4">
+    <Chat 
+      chat={chat}
+      username={username}
+      files={files}
+      currentChannel={currentChannel}
+      downloadFile={downloadFile}
+      onChannelChange={(channel) => {
+        setCurrentChannel(channel);
+        socket.current.emit('joinChannel', channel);
+      }}
+    />
+  </div>
+</div>
 );
 
 }
