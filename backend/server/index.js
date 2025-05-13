@@ -87,6 +87,8 @@ io.on('connection', (socket) => {
     // We need to handle file specifically
     if (file) {
       const fileData = {
+        name: file.name,
+        size: file.size,
         data: file,
         sender: username,
         timestamp: new Date().toISOString(),
@@ -114,11 +116,11 @@ io.on('connection', (socket) => {
 
   // WebRTC signaling
   socket.on('sendSignal', ({ userToSignal, callerID, signal }) => {
-    io.to(userToSignal).emit('user-joined', { signal, callerID });
+      io.to(userToSignal).emit('user-joined', { signal, callerID });
   });
 
   socket.on('returnSignal', ({ signal, callerID }) => {
-    io.to(callerID).emit('receivingReturnSignal', { signal, id: socket.id });
+      io.to(callerID).emit('receivingReturnSignal', { signal, id: socket.id });
   });
 
   // Handle disconnection

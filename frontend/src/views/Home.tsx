@@ -9,6 +9,8 @@ interface PeerRef {
 }
 
 interface FileMessage {
+  name: string;
+  size: number;
   data: string;
   sender: string;
   timestamp: string;
@@ -419,7 +421,8 @@ return (
                   onClick={() => downloadFile(file.data, file.data)}
                   className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                 >
-                  <span className="text-sm">Archivo: {file.data} de: {file.sender}</span>
+                  {/*Aqui va el file.name pero aun estoy arreglando el problema*/}
+                  <span className="text-sm">Archivo: {file.name} de: {file.sender}</span>
                   <span className="block text-xs text-gray-500 mt-1">
                     {new Date(file.timestamp).toLocaleString()}
                   </span>
@@ -493,7 +496,7 @@ return (
     </div>
 
     {/* COLUMNA DERECHA - CHAT */}
-    <div className="chat-column">
+    <div className="chat-column flex flex-col h-full">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
@@ -522,7 +525,8 @@ return (
       </div>
 
       {/* Mensajes del Chat */}
-      <div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
+      <div className="flex-1 flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{maxHeight: 'calc(100vh - 200px)'}}>
         {chat.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             No hay mensajes en este canal
@@ -571,11 +575,11 @@ return (
             }
           })
         )}
+        </div>
       </div>
     </div>
   </div>
-);
-
-};
+  );
+}
 
 export default Home;
