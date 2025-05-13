@@ -15,6 +15,13 @@ interface FileMessage {
   channel: string;
 }
 
+interface MessageObj {
+  channel: string;
+  sender: string;
+  text: string;
+  timestamp: string;
+}
+
 const Home = () => {
   const [message, setMessage] = useState('');
   const [chat, setChat] = useState<string[]>([]);
@@ -341,57 +348,54 @@ const Home = () => {
           {/* Área de mensajes con scroll independiente */}
           <div className="message-area">
             <div className="chat-messages">
-              {chat.length === 0 ? (
+                {chat.length === 0 ? (
                 <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                   No hay mensajes en este canal
                 </div>
-              ) : (
-                chat.map((msg, i) => {
+                ) : (
+                chat.map((msg: string, i: number) => {
+                  
                   try {
-                    const messageObj = JSON.parse(msg);
-                    const isCurrentUser = messageObj.sender === username;
-                    
-                    return (
-                      <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-3`}>
-                        <div 
-                          className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
-                            isCurrentUser 
-                              ? 'bg-green-100 dark:bg-green-800 rounded-tr-none' 
-                              : 'bg-blue-100 dark:bg-blue-800 rounded-tl-none'
-                          }`}
-                        >
-                          <div className="flex items-baseline gap-2">
-                            <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">
-                              {messageObj.sender}:
-                            </span>
-                            <span className="text-gray-900 dark:text-gray-100">
-                              {messageObj.text}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(messageObj.timestamp).toLocaleTimeString()}
-                          </div>
-                          {files[i] && (
-                            <button 
-                              onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                              className="mt-2 text-sm text-blue-600 hover:underline flex items-center dark:text-blue-400"
-                            >
-                              <Paperclip/>
-                              Descargar archivo
-                            </button>
-                          )}
-                        </div>
+                  const messageObj: MessageObj = JSON.parse(msg);
+                  const isCurrentUser: boolean = messageObj.sender === username;
+                  
+                  return (
+                    <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`}>
+                    <div 
+                      className={`message-bubble ${isCurrentUser ? 'own' : 'other'}`}
+                    >
+                      <div className="message-content">
+                      <span className="message-sender">
+                        {messageObj.sender}:
+                      </span>
+                      <span className="message-text">
+                        {messageObj.text}
+                      </span>
                       </div>
-                    );
+                      <div className="message-time">
+                      {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                      {files[i] && (
+                      <button 
+                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                        className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
+                      >
+                        <Paperclip size={12}/>
+                        <span className="ml-1">Descargar</span>
+                      </button>
+                      )}
+                    </div>
+                    </div>
+                  );
                   } catch {
-                    return (
-                      <div key={i} className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200 mb-3">
-                        {msg}
-                      </div>
-                    );
+                  return (
+                    <div key={i} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200 text-sm mb-2">
+                    {msg}
+                    </div>
+                  );
                   }
                 })
-              )}
+                )}
             </div>
           </div>
         </div>

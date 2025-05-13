@@ -399,7 +399,7 @@ button:hover:not(.dark-mode-toggle):not(.channel-btn) {
 }
 
 .chat-container {
-  height: calc(100vh - 200px); /* Ajusta según tus necesidades */
+  height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
 }
@@ -407,14 +407,65 @@ button:hover:not(.dark-mode-toggle):not(.channel-btn) {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding-right: 0.5rem;
+  padding: 0.5rem;
   scroll-behavior: smooth;
+  max-height: calc(100vh - 220px); 
 }
 
-/* Asegura que el área de mensajes ocupe el espacio disponible */
 .message-area {
-  flex: 1;
+  gap: 0.25rem;
+}
+
+/* burbujas */
+/* Burbujas de mensaje compactas */
+.message-bubble {
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  max-width: 80%;
+  min-width: 120px;
+  font-size: 0.875rem;
+  line-height: 1.25; 
+}
+
+.message-bubble.own {
+  background-color: #10b981;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.dark .message-bubble.own {
+  background-color: #047857;
+}
+
+.message-bubble.other {
+  background-color: #3b82f6;
+  color: white;
+  border-bottom-left-radius: 4px;
+}
+
+.dark .message-bubble.other {
+  background-color: #1e40af;
+}
+
+/* Contenedor de mensaje compacto */
+.message-content {
   display: flex;
-  flex-direction: column;
-  min-height: 0; /* Importante para el scroll */
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.message-sender {
+  font-weight: 600;
+  font-size: 0.8125rem; 
+}
+
+.message-text {
+  font-size: 0.875rem;
+  word-break: break-word;
+}
+
+.message-time {
+  font-size: 0.6875rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
 }
