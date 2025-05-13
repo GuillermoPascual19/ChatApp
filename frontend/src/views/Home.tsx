@@ -416,10 +416,10 @@ return (
               .map((file, i) => (
                 <div
                   key={i}
-                  onClick={() => downloadFile(file.data, `file-${i}`)}
+                  onClick={() => downloadFile(file.data, file.data)}
                   className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                 >
-                  <span className="text-sm">Archivo de {file.sender}</span>
+                  <span className="text-sm">Archivo: {file.data} de: {file.sender}</span>
                   <span className="block text-xs text-gray-500 mt-1">
                     {new Date(file.timestamp).toLocaleString()}
                   </span>
