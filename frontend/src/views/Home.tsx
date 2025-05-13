@@ -539,57 +539,59 @@ return (
 
         {/* Estilos para el selector de canal */}
         {/* Mensajes del Chat */}
-        <div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
-          {chat.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-              No hay mensajes en este canal
+<div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
+  {chat.length === 0 ? (
+    <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+      No hay mensajes en este canal
+    </div>
+  ) : (
+    chat.map((msg, i) => {
+      try {
+        const messageObj = JSON.parse(msg);
+        const isCurrentUser = messageObj.sender === username;
+        
+        return (
+          <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+            <div 
+              className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
+                isCurrentUser 
+                  ? 'bg-green-100 dark:bg-green-800 rounded-tr-none' 
+                  : 'bg-blue-100 dark:bg-blue-800 rounded-tl-none'
+              }`}
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">
+                  {messageObj.sender}:
+                </span>
+                <span className="text-gray-900 dark:text-gray-100">
+                  {messageObj.text}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {new Date(messageObj.timestamp).toLocaleTimeString()}
+              </div>
+              {files[i] && (
+                <button 
+                  onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                  className="mt-2 text-sm text-blue-600 hover:underline flex items-center dark:text-blue-400"
+                >
+                  <Paperclip/>
+                  Descargar archivo
+                </button>
+              )}
             </div>
-          ) : (
-            chat.map((msg, i) => {
-              try {
-                const messageObj = JSON.parse(msg);
-                const isCurrentUser = messageObj.sender === username;
-                
-                return (
-                  <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                    <div 
-                      className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
-                        isCurrentUser 
-                          ? 'bg-green-100 dark:bg-green-800 rounded-tr-none' 
-                          : 'bg-blue-100 dark:bg-blue-800 rounded-tl-none'
-                      }`}
-                    >
-                      <div className="font-semibold text-sm text-gray-700 dark:text-gray-200">
-                        {messageObj.sender}
-                      </div>
-                      <div className="mt-1 text-gray-900 dark:text-gray-100">
-                        {messageObj.text}
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(messageObj.timestamp).toLocaleTimeString()}
-                      </div>
-                      {files[i] && (
-                        <button 
-                          onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                          className="mt-2 text-sm text-blue-600 hover:underline flex items-center dark:text-blue-400"
-                        >
-                          <Paperclip/>
-                          Descargar archivo
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              } catch {
-                return (
-                  <div key={i} className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200">
-                    {msg}
-                  </div>
-                );
-              }
-            })
-          )}
-        </div>
+          </div>
+        );
+      } catch {
+        return (
+          <div key={i} className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200">
+            {msg}
+          </div>
+        );
+      }
+    })
+  )}
+</div>
       </div>
     </div>
   );

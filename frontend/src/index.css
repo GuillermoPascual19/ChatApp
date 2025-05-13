@@ -383,3 +383,17 @@ button:hover:not(.dark-mode-toggle):not(.channel-btn) {
   max-height: calc(100vh - 200px);
   overflow-y: auto;
 }
+.message-content {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.message-sender {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.message-text {
+  word-break: break-word;
+}
