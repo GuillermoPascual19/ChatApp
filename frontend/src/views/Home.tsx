@@ -341,7 +341,6 @@ const Home = () => {
 //                         onClick={() => downloadFile(files[i].data, `file-${i}`)}
 //                         className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
 //                       >
-//                         <span className="mr-1">📎</span>
 //                         Descargar archivo
 //                       </button>
 //                     )}
@@ -557,7 +556,6 @@ return (
                         onClick={() => downloadFile(files[i].data, `file-${i}`)}
                         className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
                       >
-                        <span className="mr-1">📎</span>
                         Descargar archivo
                       </button>
                     )}
