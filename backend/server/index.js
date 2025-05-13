@@ -77,9 +77,9 @@ io.on('connection', (socket) => {
 
     // Send channel history (ahora ya viene en orden inverso)
     socket.emit('history', channels[channelName].history);
-    if (channels[channelName].fileHistory.length > 0) {
+  
       socket.emit('file-history', channels[channelName].fileHistory);
-    }
+    
   });
 
   // Message handling
