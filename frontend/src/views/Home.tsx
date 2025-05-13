@@ -59,12 +59,8 @@ const Home = () => {
   const handleSendMessage = async () => {
     if (!message && !file) return;
 
-    const formattedMessage = JSON.stringify({
-      channel: currentChannel,
-      sender: username || 'Anónimo',
-      text: message,
-      timestamp: new Date().toISOString()
-    });
+    const formattedMessage = `[${currentChannel}] [${username || 'Anónimo'}]: ${message}`;
+    
     // Send to peers
     peersRef.current.forEach(({ peer }) => {
       peer.send(formattedMessage);
@@ -307,55 +303,37 @@ const Home = () => {
           ))
         )}
       </div> */}
-      <div className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2">
+      <div className="flex-1 overflow-y-auto mb-6 space-y-3 pr-2">
         {chat.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             No hay mensajes en este canal
           </div>
         ) : (
-          chat.map((msg, i) => {
-            try {
-              const messageObj = JSON.parse(msg);
-              const isCurrentUser = messageObj.sender === username;
-              
-              return (
-                <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                  <div 
-                    className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
-                      isCurrentUser 
-                        ? 'bg-green-100 rounded-tr-none' 
-                        : 'bg-blue-100 rounded-tl-none'
-                    }`}
-                  >
-                    <div className="font-semibold text-sm text-gray-700">
-                      {messageObj.sender}
-                    </div>
-                    <div className="mt-1 text-gray-900">
-                      {messageObj.text}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {new Date(messageObj.timestamp).toLocaleTimeString()}
-                    </div>
-                    {files[i] && (
-                      <button 
-                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                        className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
-                      >
-                        <span className="mr-1">📎</span>
-                        Descargar archivo
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            } catch {
-              return (
-                <div key={i} className="p-3 bg-gray-100 rounded-lg">
-                  {msg}
-                </div>
-              );
-            }
-          })
+          chat.map((msg, i) => (
+            <div
+              key={i}
+              className={`p-3 rounded-lg max-w-[80%] ${
+                msg.includes(`[${username}]`) 
+                  ? 'bg-green-100 ml-auto'  // Tus mensajes
+                  : 'bg-blue-100 mr-auto'   // Mensajes de otros
+              }`}
+            >
+              <div className="font-semibold text-sm">
+                {msg.match(/\[(.*?)\]/)?.[1] || 'Anónimo'}
+              </div>
+              <div className="mt-1">
+                {msg.split(']: ').slice(1).join(']: ')}
+              </div>
+              {files[i] && (
+                <button 
+                  onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                  className="mt-2 text-sm text-blue-600 hover:underline"
+                >
+                  📎 Descargar archivo adjunto
+                </button>
+              )}
+            </div>
+          ))
         )}
       </div>
 
