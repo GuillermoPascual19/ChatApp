@@ -182,9 +182,9 @@ const Home = () => {
   }, [myID]);
 
 return (
-  <div className="main-container">
+  <div className="main-container h-screen flex">
     {/* COLUMNA IZQUIERDA - CONTROLES */}
-    <div className="controls-column">
+    <div className="controls-column w-1/3 flex flex-col p-4 overflow-auto">
       {/* Modal Usuario */}
       {showUsernameModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -220,7 +220,6 @@ return (
                   onClick={() => downloadFile(file.data, file.name)}
                   className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                 >
-                  {/*Aqui va el file.name pero aun estoy arreglando el problema*/}
                   <span className="text-sm">Archivo: {file.name}</span>
                   <div className="flex justify-between mt-1">
                     <span className="text-xs text-gray-500">De: {file.sender}</span>
@@ -249,7 +248,7 @@ return (
             className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
           />
-          
+
           <div className="flex gap-2">
             <input
               type="file"
@@ -300,7 +299,7 @@ return (
     </div>
 
     {/* COLUMNA DERECHA - CHAT */}
-    <div className="chat-column flex flex-col h-[80vh]">
+    <div className="chat-column w-2/3 flex flex-col h-full overflow-hidden p-4">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">
@@ -330,61 +329,61 @@ return (
 
       {/* Mensajes del Chat */}
       <div className="flex-1 flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-y-auto p-4 space-y-4 h-full">
-        {chat.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            No hay mensajes en este canal
-          </div>
-        ) : (
-          chat.map((msg, i) => {
-            try {
-              const messageObj = JSON.parse(msg);
-              const isCurrentUser = messageObj.sender === username;
-              
-              return (
-                <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                  <div 
-                    className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
-                      isCurrentUser 
-                        ? 'bg-green-100 rounded-tr-none' 
-                        : 'bg-blue-100 rounded-tl-none'
-                    }`}
-                  >
-                    <div className="font-semibold text-sm text-gray-700">
-                      {messageObj.sender}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {chat.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              No hay mensajes en este canal
+            </div>
+          ) : (
+            chat.map((msg, i) => {
+              try {
+                const messageObj = JSON.parse(msg);
+                const isCurrentUser = messageObj.sender === username;
+
+                return (
+                  <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                    <div 
+                      className={`p-3 rounded-lg max-w-[80%] min-w-[20%] ${
+                        isCurrentUser 
+                          ? 'bg-green-100 rounded-tr-none' 
+                          : 'bg-blue-100 rounded-tl-none'
+                      }`}
+                    >
+                      <div className="font-semibold text-sm text-gray-700">
+                        {messageObj.sender}
+                      </div>
+                      <div className="mt-1 text-gray-900">
+                        {messageObj.text}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {new Date(messageObj.timestamp).toLocaleTimeString()}
+                      </div>
+                      {files[i] && (
+                        <button 
+                          onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                          className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
+                        >
+                          Descargar archivo
+                        </button>
+                      )}
                     </div>
-                    <div className="mt-1 text-gray-900">
-                      {messageObj.text}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {new Date(messageObj.timestamp).toLocaleTimeString()}
-                    </div>
-                    {files[i] && (
-                      <button 
-                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                        className="mt-2 text-sm text-blue-600 hover:underline flex items-center"
-                      >
-                        
-                        Descargar archivo
-                      </button>
-                    )}
                   </div>
-                </div>
-              );
-            } catch {
-              return (
-                <div key={i} className="p-3 bg-gray-100 rounded-lg">
-                  {msg}
-                </div>
-              );
-            }
-          })
-        )}
+                );
+              } catch {
+                return (
+                  <div key={i} className="p-3 bg-gray-100 rounded-lg">
+                    {msg}
+                  </div>
+                );
+              }
+            })
+          )}
         </div>
       </div>
     </div>
   </div>
-  );
+);
+
 }
 
 export default Home;
