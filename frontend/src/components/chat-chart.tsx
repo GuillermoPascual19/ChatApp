@@ -41,13 +41,7 @@ const Chat: React.FC<ChatProps> = ({
     <div className="flex flex-col h-full">
       {/* Header del chat */}
       <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">
-            Chat P2P - <span className="text-blue-600">{username || 'Anónimo'}</span>
-          </h2>
-          
-          {/* Selector de Canal */}
-          <div className="flex gap-2">
+        <div className="flex justify-between items-center flex gap-2">
             {['general', 'auxiliar'].map((channel) => (
               <button
                 key={channel}
@@ -61,7 +55,6 @@ const Chat: React.FC<ChatProps> = ({
                 #{channel}
               </button>
             ))}
-          </div>
         </div>
       </div>
 

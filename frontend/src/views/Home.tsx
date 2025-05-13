@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
@@ -122,51 +121,57 @@ const Home = () => {
     }
   };
 
-  // const downloadFile = (fileData: string, filename: string) => {
-  //   const link = document.createElement('a');
-  //   link.href = fileData;
-  //   link.download = filename || 'downloaded-file';
-  //   document.body.appendChild(link);
-  //   link.click();
-  //   document.body.removeChild(link);
-  // };
   const downloadFile = (fileData: string, filename: string) => {
-  try {
-    // Separar el encabezado del DataURL de los datos base64
-    const parts = fileData.split(',');
-    const metadata = parts[0].match(/:(.*?);/);
-    const mimeType = metadata ? metadata[1] : 'application/octet-stream';
-    
-    // Decodificar base64
-    const byteCharacters = atob(parts[1]);
-    const byteNumbers = new Array(byteCharacters.length);
-    
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    try {
+      // Verificar si fileData es un string válido
+      if (!fileData || typeof fileData !== 'string') {
+        throw new Error('Datos de archivo inválidos');
+      }
+      
+      // Asegurarse de que fileData sea un DataURL válido
+      if (!fileData.includes('base64')) {
+        throw new Error('El formato de datos no es válido');
+      }
+      
+      // Separar el encabezado del DataURL de los datos base64
+      const parts = fileData.split(',');
+      if (parts.length !== 2) {
+        throw new Error('Formato de datos incorrecto');
+      }
+      
+      const metadata = parts[0].match(/:(.*?);/);
+      const mimeType = metadata ? metadata[1] : 'application/octet-stream';
+      
+      // Decodificar base64
+      const byteCharacters = atob(parts[1]);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimeType });
+      
+      // Crear enlace de descarga
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename || 'downloaded-file';
+      
+      // Añadir al DOM y hacer click
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpieza
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error al descargar el archivo:', error);
+      alert('Error al descargar el archivo. Por favor, inténtalo de nuevo.');
     }
-    
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mimeType });
-    
-    // Crear enlace de descarga
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = filename;
-    
-    // Añadir al DOM y hacer click
-    document.body.appendChild(a);
-    a.click();
-    
-    // Limpieza
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  } catch (error) {
-    console.error('Error al descargar el archivo:', error);
-    alert('Error al descargar el archivo. Por favor, inténtalo de nuevo.');
-  }
-};
+  };
 
   function toBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -193,8 +198,10 @@ const Home = () => {
     socket.current.on('history', (history) => {
       setChat(history);
     });
+    
     socket.current.on('file-history', (fileHistory) => {
-      setFiles(prevFiles => [...prevFiles, ...fileHistory]);
+      // Limpiar el estado de archivos anterior y establecer el nuevo historial
+      setFiles(fileHistory);
     });
 
     socket.current.on('user-joined', (payload) => {
@@ -220,12 +227,14 @@ const Home = () => {
     };
   }, []);
 
-  // Join channel on component mount
+  // Join channel on component mount and when changing channels
   useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
+      // Solicitar explícitamente el historial de archivos al cambiar de canal
+      socket.current.emit('getFileHistory', currentChannel);
     }
-  }, [myID]);
+  }, [myID, currentChannel]);
 
 return (
   <div className="main-container h-screen flex p-4 gap-4 bg-gray-50">
@@ -278,6 +287,7 @@ return (
                 onClick={() => downloadFile(file.data, file.name)}
                 className="p-3 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
               >
+                <div className="text-sm font-medium truncate">{file.name}</div>
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-gray-500">Archivo de: {file.sender}</span>
                   <span className="text-xs text-gray-500">
@@ -340,7 +350,7 @@ return (
               onClick={() => setFile(null)}
               className="text-red-500 hover:text-red-700"
             >
-              ✕
+              Cancel
             </button>
           </div>
         </div>
@@ -368,6 +378,8 @@ return (
         onChannelChange={(channel) => {
           setCurrentChannel(channel);
           socket.current.emit('joinChannel', channel);
+          // Solicitar explícitamente el historial de archivos al cambiar de canal
+          socket.current.emit('getFileHistory', channel);
         }}
       />
     </div>
