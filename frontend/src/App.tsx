@@ -1,5 +1,5 @@
 
-import Home from './views/Home'
+// import Home from './views/Home'
 import './App.css'
 import HomeLayout from './layout/home-layout'
 
