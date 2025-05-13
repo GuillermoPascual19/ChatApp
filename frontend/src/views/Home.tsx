@@ -308,18 +308,20 @@ return (
   </div>
 
   {/* COLUMNA DERECHA - CHAT */}
-  <div className="w-2/3 pl-4">
-    <Chat 
-      chat={chat}
-      username={username}
-      files={files}
-      currentChannel={currentChannel}
-      downloadFile={downloadFile}
-      onChannelChange={(channel) => {
-        setCurrentChannel(channel);
-        socket.current.emit('joinChannel', channel);
-      }}
-    />
+  <div className="w-2/3 flex flex-col">
+    <div className="flex-1 flex flex-col border border-gray-300 rounded-lg shadow-sm bg-white overflow-hidden">
+      <Chat 
+        chat={chat}
+        username={username}
+        files={files}
+        currentChannel={currentChannel}
+        downloadFile={downloadFile}
+        onChannelChange={(channel) => {
+          setCurrentChannel(channel);
+          socket.current.emit('joinChannel', channel);
+        }}
+      />
+    </div>
   </div>
 </div>
 );

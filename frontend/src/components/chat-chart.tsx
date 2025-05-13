@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface FileMessage {
   name: string;
@@ -26,8 +26,19 @@ const Chat: React.FC<ChatProps> = ({
   downloadFile,
   onChannelChange
 }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll al final cuando hay nuevos mensajes
+  useEffect(() => {
+    scrollToBottom();
+  }, [chat]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="chat-container bg-white rounded-lg border border-gray-300 shadow-sm flex flex-col" style={{ height: '500px' }}>
+    <div className="flex flex-col h-full">
       {/* Header del chat */}
       <div className="p-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
         <div className="flex justify-between items-center">
@@ -55,7 +66,7 @@ const Chat: React.FC<ChatProps> = ({
       </div>
 
       {/* Área de mensajes con scroll interno */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-white">
         {chat.length === 0 ? (
           <div className="text-center text-gray-500 py-4">
             No hay mensajes en este canal
@@ -104,6 +115,7 @@ const Chat: React.FC<ChatProps> = ({
             }
           })
         )}
+        <div ref={messagesEndRef} />
       </div>
     </div>
   );
