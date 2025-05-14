@@ -81,6 +81,99 @@ html, body, #root {
   background-color: #1f2937;
 }
 
+/* Estilos para botones de la columna izquierda */
+.controls-column .btn-left-col {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.dark .controls-column .btn-left-col {
+  border-color: #4b5563;
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.controls-column .btn-left-col:hover {
+  background-color: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+.dark .controls-column .btn-left-col:hover {
+  background-color: #374151;
+}
+
+.controls-column .btn-left-col:disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.dark .controls-column .btn-left-col:disabled {
+  background-color: #374151;
+  color: #6b7280;
+}
+
+/* Estilo específico para botón de enviar activo */
+.controls-column .btn-send-active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.dark .controls-column .btn-send-active {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.controls-column .btn-send-active:hover {
+  background-color: #2563eb;
+}
+
+.dark .controls-column .btn-send-active:hover {
+  background-color: #1e40af;
+}
+
+/* Estilo para el label de archivo */
+.controls-column .file-label {
+  border: 1px solid #d1d5db;
+  background-color: white;
+  color: #374151;
+}
+
+.dark .controls-column .file-label {
+  border-color: #4b5563;
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.controls-column .file-label:hover {
+  background-color: #e5e7eb;
+}
+
+.dark .controls-column .file-label:hover {
+  background-color: #374151;
+}
+
+.controls-column .file-label.has-file {
+  border-color: #10b981;
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.dark .controls-column .file-label.has-file {
+  border-color: #047857;
+  background-color: #064e3b;
+  color: #d1fae5;
+}
+
 /* Columna derecha - Chat (Modo Claro) */
 .chat-column {
   flex: 1;

@@ -256,58 +256,63 @@ const Home = () => {
           )}
 
           {/* Entrada de Mensaje */}
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Escribe tu mensaje..."
-                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              />
-              
-              <div className="flex gap-2">
-                <input
-                  type="file"
-                  onChange={handleFile}
-                  className="hidden"
-                  id="fileInput"
-                />
-                <label
-                  htmlFor="fileInput"
-                  className={`flex-1 p-2 text-center rounded-lg cursor-pointer ${
-                    file ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'
-                  }`}
-                >
-                  {file ? 'Archivo listo' : 'Seleccionar archivo'}
-                </label>
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!message && !file}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-500"
-                >
-                  Enviar
-                </button>
-              </div>
-            </div>
+<div className="flex-1">
+  <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
+  <div className="space-y-4">
+    <input
+      type="text"
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      placeholder="Escribe tu mensaje..."
+      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+    />
+    
+    <div className="flex gap-2">
+      <input
+        type="file"
+        onChange={handleFile}
+        className="hidden"
+        id="fileInput"
+      />
+      <label
+        htmlFor="fileInput"
+        className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
+          file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
+          'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+        }`}
+      >
+        {file ? 'Archivo listo' : 'Seleccionar archivo'}
+      </label>
+      <button
+        onClick={handleSendMessage}
+        disabled={!message && !file}
+        className={`flex-1 p-2 rounded-lg border ${
+          (!message && !file) ? 
+          'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
+          'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
+        }`}
+      >
+        Enviar
+      </button>
+    </div>
+  </div>
 
-            {/* Previsualización Archivo */}
-            {file && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
-                  <button 
-                    onClick={() => setFile(null)}
-                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                  >
-                    <X />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+  {/* Previsualización Archivo */}
+  {file && (
+    <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
+      <div className="flex justify-between items-center">
+        <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
+        <button 
+          onClick={() => setFile(null)}
+          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+        >
+          <X />
+        </button>
+      </div>
+    </div>
+  )}
+</div>
 
           {/* Información Usuario */}
           <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
