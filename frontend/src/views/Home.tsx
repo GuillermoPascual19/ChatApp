@@ -30,7 +30,6 @@ const Home = () => {
   const [tempUsername, setTempUsername] = useState('');
   const [currentChannel, setCurrentChannel] = useState('general');
   const [file, setFile] = useState<File | null>(null);
-  const [files, setFiles] = useState<FileMessage[]>([]);
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const peersRef = useRef<PeerRef[]>([]);
@@ -176,7 +175,7 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
-      setFiles(prev => [...prev, fileData]);
+      setFileHistory(prev => [...prev, fileData]);
     });
 
     return () => {
