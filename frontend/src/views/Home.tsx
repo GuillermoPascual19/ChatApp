@@ -34,7 +34,7 @@ const Home = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const peersRef = useRef<PeerRef[]>([]);
-
+const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
    const toggleDarkMode = () => {
@@ -156,6 +156,11 @@ const Home = () => {
       setChat(history);
     });
 
+    socket.current.on('file-history', (history) => {
+      console.log('Received file history:', history);
+      setFileHistory(history);
+    });
+
     socket.current.on('user-joined', (payload) => {
       const peer = addPeer(payload.signal, payload.callerID);
       peersRef.current.push({ peerID: payload.callerID, peer });
@@ -233,11 +238,11 @@ const Home = () => {
           )}
 
           {/* Archivos Compartidos */}
-          {files.length > 0 && (
+          {fileHistory.length > 0 && (
             <div className="mb-6">
               <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
               <div className="grid grid-cols-1 gap-2">
-                {files
+                {fileHistory
                   .filter((f) => f.channel === currentChannel)
                   .map((file, i) => (
                     <div
@@ -339,7 +344,10 @@ const Home = () => {
                 key={channel}
                 onClick={() => {
                   setCurrentChannel(channel);
+                  setChat([]); // Limpiar el chat actual
+                  setFileHistory([]); // Limpiar el historial de archivos
                   socket.current.emit('joinChannel', channel);
+                  socket.current.emit('getFileHistory', channel);
                 }}
                 className={`channel-btn ${
                   currentChannel === channel ? 'active' : ''
@@ -363,7 +371,12 @@ const Home = () => {
                   try {
                   const messageObj: MessageObj = JSON.parse(msg);
                   const isCurrentUser: boolean = messageObj.sender === username;
-                  
+                  // Buscar el archivo correspondiente en el historial
+                  const fileForMessage = fileHistory.find(f => 
+                    f.channel === currentChannel && 
+                    f.sender === messageObj.sender && 
+                    f.timestamp === messageObj.timestamp
+                  );
                   return (
                     <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`}>
                     <div 
@@ -380,9 +393,9 @@ const Home = () => {
                       <div className="message-time">
                       {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
-                      {files[i] && (
+                      {fileForMessage && (
                       <button 
-                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                        onClick={() => downloadFile(fileForMessage.data, `file-${i}`)}
                         className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
                       >
                         <Paperclip size={12}/>
