@@ -157,7 +157,7 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
 
     socket.current.on('file-history', (history) => {
       console.log('Received file history:', history);
-      setFileHistory(history);
+      setFileHistory(history || []);
     });
 
     socket.current.on('user-joined', (payload) => {
@@ -175,8 +175,15 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
-      setFileHistory(prev => [...prev, fileData]);
+      setFileHistory(prev => [fileData, ...prev]);
     });
+
+    const handleChannelChange = (channel: string) => {
+      setCurrentChannel(channel);
+      setChat([]); // Clear chat on channel change
+      setFileHistory([]); // Clear file history on channel change
+      socket.current.emit('getFileHistory', channel);
+    }
 
     return () => {
       socket.current.disconnect();
@@ -245,8 +252,8 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
                   .filter((f) => f.channel === currentChannel)
                   .map((file, i) => (
                     <div
-                      key={i}
-                      onClick={() => downloadFile(file.data, `file-${i}`)}
+                      key={`${file.timestamp}-${i}`}
+                      onClick={() => downloadFile(file.data, `file-${file.sender}-${i}`)}
                       className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
                     >
                       <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
