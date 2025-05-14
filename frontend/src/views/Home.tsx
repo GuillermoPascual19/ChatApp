@@ -30,10 +30,11 @@ const Home = () => {
   const [tempUsername, setTempUsername] = useState('');
   const [currentChannel, setCurrentChannel] = useState('general');
   const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<FileMessage[]>([]);
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const peersRef = useRef<PeerRef[]>([]);
-const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
+
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
    const toggleDarkMode = () => {
@@ -155,11 +156,6 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
       setChat(history);
     });
 
-    socket.current.on('file-history', (history) => {
-      console.log('Received file history:', history);
-      setFileHistory(history || []);
-    });
-
     socket.current.on('user-joined', (payload) => {
       const peer = addPeer(payload.signal, payload.callerID);
       peersRef.current.push({ peerID: payload.callerID, peer });
@@ -175,15 +171,8 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
-      setFileHistory(prev => [fileData, ...prev]);
+      setFiles(prev => [...prev, fileData]);
     });
-
-    const handleChannelChange = (channel: string) => {
-      setCurrentChannel(channel);
-      setChat([]); // Clear chat on channel change
-      setFileHistory([]); // Clear file history on channel change
-      socket.current.emit('getFileHistory', channel);
-    }
 
     return () => {
       socket.current.disconnect();
@@ -244,16 +233,16 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
           )}
 
           {/* Archivos Compartidos */}
-          {fileHistory.length > 0 && (
+          {files.length > 0 && (
             <div className="mb-6">
               <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
               <div className="grid grid-cols-1 gap-2">
-                {fileHistory
+                {files
                   .filter((f) => f.channel === currentChannel)
                   .map((file, i) => (
                     <div
-                      key={`${file.timestamp}-${i}`}
-                      onClick={() => downloadFile(file.data, `file-${file.sender}-${i}`)}
+                      key={i}
+                      onClick={() => downloadFile(file.data, `file-${i}`)}
                       className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
                     >
                       <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
@@ -350,10 +339,7 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
                 key={channel}
                 onClick={() => {
                   setCurrentChannel(channel);
-                  setChat([]); // Limpiar el chat actual
-                  setFileHistory([]); // Limpiar el historial de archivos
                   socket.current.emit('joinChannel', channel);
-                  socket.current.emit('getFileHistory', channel);
                 }}
                 className={`channel-btn ${
                   currentChannel === channel ? 'active' : ''
@@ -377,12 +363,7 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
                   try {
                   const messageObj: MessageObj = JSON.parse(msg);
                   const isCurrentUser: boolean = messageObj.sender === username;
-                  // Buscar el archivo correspondiente en el historial
-                  const fileForMessage = fileHistory.find(f => 
-                    f.channel === currentChannel && 
-                    f.sender === messageObj.sender && 
-                    f.timestamp === messageObj.timestamp
-                  );
+                  
                   return (
                     <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`}>
                     <div 
@@ -399,9 +380,9 @@ const [fileHistory, setFileHistory] = useState<FileMessage[]>([]);
                       <div className="message-time">
                       {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
-                      {fileForMessage && (
+                      {files[i] && (
                       <button 
-                        onClick={() => downloadFile(fileForMessage.data, `file-${i}`)}
+                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
                         className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
                       >
                         <Paperclip size={12}/>
