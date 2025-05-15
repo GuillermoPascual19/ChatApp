@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { Server as SocketServer } from 'socket.io';
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 app.use(cors());
@@ -9,16 +11,48 @@ const server = http.createServer(app);
 
 const io = new SocketServer(server, {
   cors: {
-    origin: ['http://localhost:5173', 'https://chat-app-drab-delta-83.vercel.app/'],
+    origin: ['http://localhost:5173', 'https://chat-app-drab-delta-83.vercel.app/', 'https://chat-p2p-guille.vercel.app', 'https://chat-p2p-goje.vercel.app/'],
     methods: ['GET', 'POST']
   }
 });
 
-const channels = {
+// Directorio para persistencia de datos
+const DATA_DIR = path.join(process.cwd(), 'data');
+const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
+
+// Crear directorio si no existe
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Inicializar o cargar datos existentes
+let channelsData = {
   general: { history: [], fileHistory: [], coordinator: null },
   auxiliar: { history: [], fileHistory: [], coordinator: null }
 };
 
+// Cargar historial si existe
+if (fs.existsSync(HISTORY_FILE)) {
+  try {
+    const data = fs.readFileSync(HISTORY_FILE, 'utf8');
+    channelsData = JSON.parse(data);
+    console.log('Historial cargado correctamente');
+  } catch (error) {
+    console.error('Error al cargar el historial:', error);
+  }
+}
+
+// Función para guardar el historial en disco
+function saveHistory() {
+  try {
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(channelsData), 'utf8');
+  } catch (error) {
+    console.error('Error al guardar el historial:', error);
+  }
+}
+
+// Usar los datos cargados o inicializados
+const channels = channelsData;
 const users = new Map();
 
 // Función para ayudar con el debugging
@@ -52,6 +86,9 @@ io.on('connection', (socket) => {
         channels[channelName].history.unshift(systemMsg);
         io.to(channelName).emit('new-message', systemMsg, true); // Segundo parámetro indica mensaje nuevo al inicio
       });
+      
+      // Guardar cambios en el historial
+      saveHistory();
     }
   });
 
@@ -85,15 +122,20 @@ io.on('connection', (socket) => {
     // Send channel history (ahora ya viene en orden inverso)
     socket.emit('history', channels[channelName].history);
     
-    // Enviar explícitamente el historial de archivos al unirse al canal
+    // MODIFICADO: Enviar explícitamente el historial de archivos al unirse al canal
     console.log(`Sending file history to user ${socket.id}, channel ${channelName}, ${channels[channelName].fileHistory.length} files`);
-    socket.emit('file-history', channels[channelName].fileHistory);
+    if (channels[channelName].fileHistory && channels[channelName].fileHistory.length > 0) {
+      socket.emit('file-history', channels[channelName].fileHistory);
+    }
+    
+    // Guardar cambios en el historial
+    saveHistory();
   });
 
   // Manejar solicitud explícita de historial de archivos
   socket.on('getFileHistory', (channelName) => {
     console.log(`User ${socket.id} requesting file history for channel ${channelName}`);
-    if (channels[channelName]) {
+    if (channels[channelName] && channels[channelName].fileHistory) {
       console.log(`Sending ${channels[channelName].fileHistory.length} files in history to user ${socket.id}`);
       socket.emit('file-history', channels[channelName].fileHistory);
     }
@@ -133,12 +175,19 @@ io.on('connection', (socket) => {
       channels[channel].history.unshift(fileMessage);
 
       // Guardar el archivo en el historial de archivos del canal
+      // MODIFICADO: Asegurarnos de que el arreglo fileHistory existe
+      if (!channels[channel].fileHistory) {
+        channels[channel].fileHistory = [];
+      }
       channels[channel].fileHistory.push(fileData);
       
       // Send file to all clients in the channel
       console.log(`Broadcasting new file to channel ${channel}`);
       io.to(channel).emit('new-file', fileData);
       io.to(channel).emit('new-message', fileMessage, true); // true indica mensaje nuevo al inicio
+      
+      // Guardar cambios en el historial
+      saveHistory();
     } else {
       // Regular text message
       // Añadir al inicio del historial
@@ -148,6 +197,9 @@ io.on('connection', (socket) => {
       }
       
       io.to(channel).emit('new-message', formattedMessage, true); // true indica mensaje nuevo al inicio
+      
+      // Guardar cambios en el historial
+      saveHistory();
     }
   });
 
@@ -168,6 +220,9 @@ io.on('connection', (socket) => {
       channels[channelName].fileHistory = [];
       io.to(channelName).emit('history', []);
       io.to(channelName).emit('file-history', []);
+      
+      // Guardar cambios en el historial
+      saveHistory();
     }
   });
 
@@ -201,6 +256,9 @@ io.on('connection', (socket) => {
         }
       }
     });
+    
+    // Guardar cambios en el historial
+    saveHistory();
   });
 });
 

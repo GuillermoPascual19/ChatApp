@@ -9,6 +9,8 @@ interface PeerRef {
 }
 
 interface FileMessage {
+  name: string; // Añadido nombre del archivo
+  size: number; // Añadido tamaño del archivo
   data: string;
   sender: string;
   timestamp: string;
@@ -35,6 +37,7 @@ const Home = () => {
   const [darkMode, setDarkMode] = useState(false);
   const peersRef = useRef<PeerRef[]>([]);
 
+  // Referencia al socket para evitar reconexiones
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
    const toggleDarkMode = () => {
@@ -92,7 +95,11 @@ const Home = () => {
         socket.current.emit('message', {
           message: formattedMessage,
           channel: currentChannel,
-          file: fileData
+          file: {
+            name: file.name,
+            size: file.size,
+            data: fileData
+          }
         });
       } catch (error) {
         console.error('Error processing file:', error);
@@ -145,6 +152,14 @@ const Home = () => {
     });
   }
 
+  // Solicitar explícitamente el historial de archivos al cambiar de canal
+  const handleChannelChange = (channel: string) => {
+    setCurrentChannel(channel);
+    socket.current.emit('joinChannel', channel);
+    // Solicitar explícitamente el historial de archivos
+    socket.current.emit('getFileHistory', channel);
+  };
+
   // Server Communication
   useEffect(() => {
     socket.current.on('Id', (id) => {
@@ -154,6 +169,16 @@ const Home = () => {
 
     socket.current.on('history', (history) => {
       setChat(history);
+    });
+
+    // Manejar el historial de archivos recibido del servidor
+    socket.current.on('file-history', (fileHistory: FileMessage[]) => {
+      console.log('File history received:', fileHistory);
+      if (Array.isArray(fileHistory)) {
+        setFiles(fileHistory);
+      } else {
+        console.error('Invalid file history format:', fileHistory);
+      }
     });
 
     socket.current.on('user-joined', (payload) => {
@@ -171,11 +196,21 @@ const Home = () => {
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
-      setFiles(prev => [...prev, fileData]);
+      console.log('New file received:', fileData);
+      if (fileData && fileData.data) {
+        setFiles(prev => [...prev, fileData]);
+      }
     });
 
+    // Limpiar event listeners al desmontar
     return () => {
-      socket.current.disconnect();
+      socket.current.off('Id');
+      socket.current.off('history');
+      socket.current.off('file-history');
+      socket.current.off('user-joined');
+      socket.current.off('receivingReturnSignal');
+      socket.current.off('new-message');
+      socket.current.off('new-file');
     };
   }, []);
 
@@ -183,10 +218,12 @@ const Home = () => {
   useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
+      // Solicitar explícitamente el historial de archivos
+      socket.current.emit('getFileHistory', currentChannel);
     }
   }, [myID]);
 
-   useEffect(() => {
+  useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode) {
       setDarkMode(JSON.parse(savedMode));
@@ -242,10 +279,12 @@ const Home = () => {
                   .map((file, i) => (
                     <div
                       key={i}
-                      onClick={() => downloadFile(file.data, `file-${i}`)}
+                      onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
                       className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
                     >
-                      <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
+                      <span className="text-sm flex-1 dark:text-gray-200">
+                        {file.name ? file.name : `Archivo de ${file.sender}`}
+                      </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(file.timestamp).toLocaleTimeString()}
                       </span>
@@ -256,63 +295,63 @@ const Home = () => {
           )}
 
           {/* Entrada de Mensaje */}
-<div className="flex-1">
-  <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
-  <div className="space-y-4">
-    <input
-      type="text"
-      value={message}
-      onChange={(e) => setMessage(e.target.value)}
-      placeholder="Escribe tu mensaje..."
-      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-    />
-    
-    <div className="flex gap-2">
-      <input
-        type="file"
-        onChange={handleFile}
-        className="hidden"
-        id="fileInput"
-      />
-      <label
-        htmlFor="fileInput"
-        className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
-          file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
-          'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
-        }`}
-      >
-        {file ? 'Archivo listo' : 'Seleccionar archivo'}
-      </label>
-      <button
-        onClick={handleSendMessage}
-        disabled={!message && !file}
-        className={`flex-1 p-2 rounded-lg border ${
-          (!message && !file) ? 
-          'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
-          'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
-        }`}
-      >
-        Enviar
-      </button>
-    </div>
-  </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Escribe tu mensaje..."
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              />
+              
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  onChange={handleFile}
+                  className="hidden"
+                  id="fileInput"
+                />
+                <label
+                  htmlFor="fileInput"
+                  className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
+                    file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
+                    'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  {file ? 'Archivo listo' : 'Seleccionar archivo'}
+                </label>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!message && !file}
+                  className={`flex-1 p-2 rounded-lg border ${
+                    (!message && !file) ? 
+                    'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
+                    'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  Enviar
+                </button>
+              </div>
+            </div>
 
-  {/* Previsualización Archivo */}
-  {file && (
-    <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
-      <div className="flex justify-between items-center">
-        <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
-        <button 
-          onClick={() => setFile(null)}
-          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-        >
-          <X />
-        </button>
-      </div>
-    </div>
-  )}
-</div>
+            {/* Previsualización Archivo */}
+            {file && (
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
+                  <button 
+                    onClick={() => setFile(null)}
+                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    <X />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Información Usuario */}
           <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -337,10 +376,7 @@ const Home = () => {
             {['general', 'auxiliar'].map((channel) => (
               <button
                 key={channel}
-                onClick={() => {
-                  setCurrentChannel(channel);
-                  socket.current.emit('joinChannel', channel);
-                }}
+                onClick={() => handleChannelChange(channel)}
                 className={`channel-btn ${
                   currentChannel === channel ? 'active' : ''
                 }`}
@@ -364,6 +400,12 @@ const Home = () => {
                   const messageObj: MessageObj = JSON.parse(msg);
                   const isCurrentUser: boolean = messageObj.sender === username;
                   
+                  // Buscar si hay un archivo asociado con este mensaje
+                  const relatedFile = files.find(f => 
+                    f.sender === messageObj.sender && 
+                    new Date(f.timestamp).getTime() - new Date(messageObj.timestamp).getTime() < 1000
+                  );
+                  
                   return (
                     <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`}>
                     <div 
@@ -380,13 +422,13 @@ const Home = () => {
                       <div className="message-time">
                       {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
-                      {files[i] && (
+                      {relatedFile && (
                       <button 
-                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
+                        onClick={() => downloadFile(relatedFile.data, relatedFile.name || `file-${i}`)}
                         className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
                       >
                         <Paperclip size={12}/>
-                        <span className="ml-1">Descargar</span>
+                        <span className="ml-1">Descargar {relatedFile.name || 'archivo'}</span>
                       </button>
                       )}
                     </div>
