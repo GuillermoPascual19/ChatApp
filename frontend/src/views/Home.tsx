@@ -13,6 +13,8 @@ interface FileMessage {
   sender: string;
   timestamp: string;
   channel: string;
+  name?: string;
+  size?: number;
 }
 
 interface MessageObj {
@@ -37,9 +39,8 @@ const Home = () => {
 
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
-   const toggleDarkMode = () => {
+  const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    // Guardar preferencia en localStorage
     localStorage.setItem('darkMode', JSON.stringify(!darkMode));
   };
 
@@ -92,7 +93,11 @@ const Home = () => {
         socket.current.emit('message', {
           message: formattedMessage,
           channel: currentChannel,
-          file: fileData
+          file: {
+            name: file.name,
+            size: file.size,
+            data: fileData
+          }
         });
       } catch (error) {
         console.error('Error processing file:', error);
@@ -152,12 +157,23 @@ const Home = () => {
       setShowUsernameModal(true);
     });
 
+    // Manejar el historial de mensajes
     socket.current.on('history', (history) => {
       setChat(history);
     });
-    socket.current.on('filehistory', (fileHistory: FileMessage[]) => {
-      
-        setFiles(fileHistory);
+    
+    // Manejar el historial de archivos
+    socket.current.on('file-history', (fileHistory: FileMessage[]) => {
+      console.log('Received file history:', fileHistory);
+      setFiles(fileHistory);
+    });
+    
+    //PRUUEBA CON HISTORIAL COMPLETO
+    // Manejar el historial completo (mensajes + archivos)
+    socket.current.on('full-history', (data) => {
+      console.log('Received full history:', data);
+      if (data.messages) setChat(data.messages);
+      if (data.files) setFiles(data.files);
     });
 
     socket.current.on('user-joined', (payload) => {
@@ -175,7 +191,16 @@ const Home = () => {
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
+      console.log('Received new file:', fileData);
       setFiles(prev => [...prev, fileData]);
+    });
+
+    // Solicitar explícitamente el historial de archivos al conectar
+    socket.current.on('connect', () => {
+      console.log('Socket connected, requesting file history');
+      if (currentChannel) {
+        socket.current.emit('getFileHistory', currentChannel);
+      }
     });
 
     return () => {
@@ -183,19 +208,21 @@ const Home = () => {
     };
   }, []);
 
-  // Join channel on component mount
+  // Join channel on component mount or channel change
   useEffect(() => {
-    if (myID) {
+    if (myID && currentChannel) {
+      console.log(`Joining channel: ${currentChannel}`);
       socket.current.emit('joinChannel', currentChannel);
+      // Solicitar explícitamente el historial de archivos
+      socket.current.emit('getFileHistory', currentChannel);
     }
-  }, [myID]);
+  }, [myID, currentChannel]);
 
-   useEffect(() => {
+  useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode) {
       setDarkMode(JSON.parse(savedMode));
     } else {
-      // Usar la preferencia del sistema si no hay configuración guardada
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       setDarkMode(prefersDark);
     }
@@ -239,17 +266,19 @@ const Home = () => {
           {/* Archivos Compartidos */}
           {files.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
+              <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos ({files.filter(f => f.channel === currentChannel).length})</h3>
               <div className="grid grid-cols-1 gap-2">
                 {files
                   .filter((f) => f.channel === currentChannel)
                   .map((file, i) => (
                     <div
                       key={i}
-                      onClick={() => downloadFile(file.data, `file-${i}`)}
+                      onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
                       className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
                     >
-                      <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
+                      <span className="text-sm flex-1 dark:text-gray-200">
+                        {file.name || `Archivo de ${file.sender}`}
+                      </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(file.timestamp).toLocaleTimeString()}
                       </span>
@@ -302,21 +331,21 @@ const Home = () => {
     </div>
   </div>
 
-  {/* Previsualización Archivo */}
-  {file && (
-    <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
-      <div className="flex justify-between items-center">
-        <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
-        <button 
-          onClick={() => setFile(null)}
-          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-        >
-          <X />
-        </button>
-      </div>
+      {/* Previsualización Archivo */}
+      {file && (
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
+          <div className="flex justify-between items-center">
+            <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
+            <button 
+              onClick={() => setFile(null)}
+              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            >
+              <X />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-  )}
-</div>
 
           {/* Información Usuario */}
           <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -366,6 +395,9 @@ const Home = () => {
                   
                   try {
                   const messageObj: MessageObj = JSON.parse(msg);
+                  // Solo mostrar mensajes del canal actual
+                  if (messageObj.channel !== currentChannel) return null;
+                  
                   const isCurrentUser: boolean = messageObj.sender === username;
                   
                   return (
