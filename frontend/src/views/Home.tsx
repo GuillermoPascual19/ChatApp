@@ -155,7 +155,7 @@ const Home = () => {
     socket.current.on('history', (history) => {
       setChat(history);
     });
-    socket.current.on('file-history', (fileHistory: FileMessage[]) => {
+    socket.current.on('filehistory', (fileHistory: FileMessage[]) => {
       
         setFiles(fileHistory);
     });
