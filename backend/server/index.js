@@ -21,6 +21,7 @@ const channels = {
 
 const users = new Map();
 
+
 io.on('connection', (socket) => {
   console.log('New connection:', socket.id);
   
@@ -50,45 +51,40 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('joinChannel', (channelName) => {
-    console.log(`User ${socket.id} joining channel ${channelName}`);
-    if (!channels[channelName]) return;
+  // // Channel handling
+  // socket.on('joinChannel', (channelName) => {
+  //   console.log(`User ${socket.id} joining channel ${channelName}`);
+  //   if (!channels[channelName]) return;
 
-    // Leave previous channels
-    users.get(socket.id)?.channels.forEach(ch => {
-      socket.leave(ch);
-    });
+  //   // Leave previous channels
+  //   users.get(socket.id)?.channels.forEach(ch => {
+  //     socket.leave(ch);
+  //   });
     
-    // Join new channel
-    const username = users.get(socket.id)?.username;
-    users.get(socket.id).channels = new Set([channelName]);
-    socket.join(channelName);
+  //   // Join new channel
+  //   const username = users.get(socket.id)?.username;
+  //   users.get(socket.id).channels = new Set([channelName]);
+  //   socket.join(channelName);
 
-    // Inform channel about new user
-    const joinMsg = `[System] ${username} se ha unido a #${channelName}`;
-    channels[channelName].history.unshift(joinMsg);
-    io.to(channelName).emit('new-message', joinMsg, true);
+  //   // Inform channel about new user
+  //   const joinMsg = `[System] ${username} se ha unido a #${channelName}`;
+  //   // Añadir al inicio del historial
+  //   channels[channelName].history.unshift(joinMsg);
+  //   io.to(channelName).emit('new-message', joinMsg, true); // true indica mensaje nuevo al inicio
 
-    // Assign coordinator if needed
-    if (!channels[channelName].coordinator) {
-      channels[channelName].coordinator = socket.id;
-      socket.emit('coordinator-status', true);
-      console.log(`User ${socket.id} assigned as coordinator for ${channelName}`);
-    }
+  //   // Assign coordinator if needed
+  //   if (!channels[channelName].coordinator) {
+  //     channels[channelName].coordinator = socket.id;
+  //     socket.emit('coordinator-status', true);
+  //   }
 
-    // Send channel history
-    socket.emit('history', channels[channelName].history);
+  //   // Send channel history (ahora ya viene en orden inverso)
+  //   socket.emit('history', channels[channelName].history);
     
-    // También enviar explícitamente el historial de archivos 
-    console.log(`Sending file history to user ${socket.id}, channel ${channelName}, ${channels[channelName].fileHistory.length} files`);
-    socket.emit('file-history', channels[channelName].fileHistory);
-    
-    // Enviar todo como un objeto para mayor consistencia
-    socket.emit('full-history', {
-      messages: channels[channelName].history,
-      files: channels[channelName].fileHistory
-    });
-  });
+  //   // Enviar explícitamente el historial de archivos al unirse al canal
+  //   console.log(`Sending file history to user ${socket.id}, channel ${channelName}, ${channels[channelName].fileHistory.length} files`);
+  //   socket.emit('file-history', channels[channelName].fileHistory);
+  // });
 
   // Manejar solicitud explícita de historial de archivos
   socket.on('getFileHistory', (channelName) => {
@@ -108,7 +104,7 @@ io.on('connection', (socket) => {
     
     // We need to handle file specifically
     if (file) {
-      console.log(`File received: ${file.name}, size: ${file.size}`);
+      console.log(`File received: ${file.name}, size: ${file.size}, data length: ${file.data ? file.data.length : 'undefined'}`);
       
       // Asegurarse de que el archivo tenga datos válidos antes de procesarlo
       if (!file.data) {
