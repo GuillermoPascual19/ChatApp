@@ -1,3 +1,10 @@
+/*
+// Authors:
+// - Óscar Serrano Ramos
+// - Jesús Vazquez Gorjón
+// - Guillermo Pascual Mangas
+*/ 
+
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
