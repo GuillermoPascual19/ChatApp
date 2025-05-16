@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
@@ -15,6 +14,7 @@ interface FileMessage {
   timestamp: string;
   channel: string;
   name?: string;
+  filepath?: string;
 }
 
 interface MessageObj {
@@ -22,6 +22,7 @@ interface MessageObj {
   sender: string;
   text: string;
   timestamp: string;
+  filename?: string;
 }
 
 const Home = () => {
@@ -42,11 +43,9 @@ const Home = () => {
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    // Guardar preferencia en localStorage
     localStorage.setItem('darkMode', JSON.stringify(!darkMode));
   };
 
-  // Auto scroll cuando hay nuevos mensajes
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -91,7 +90,7 @@ const Home = () => {
       sender: username || 'Anónimo',
       text: message || (file ? `Compartió un archivo: ${file.name}` : ''),
       timestamp: timestamp,
-      filename: file?.name // Añadir el nombre original del archivo
+      filename: file?.name
     });
     
     // Send to peers
@@ -103,7 +102,6 @@ const Home = () => {
     if (file) {
       try {
         const fileData = await toBase64(file);
-        // Send to coordinator for history
         socket.current.emit('message', {
           message: formattedMessage,
           channel: currentChannel,
@@ -114,7 +112,6 @@ const Home = () => {
         alert('Error processing file');
       }
     } else {
-      // Send text only message
       socket.current.emit('message', {
         message: formattedMessage,
         channel: currentChannel,
@@ -125,7 +122,6 @@ const Home = () => {
     setMessage('');
     setFile(null);
   };
-
 
   // File Handling
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,12 +165,25 @@ const Home = () => {
   };
 
   const downloadFile = (fileData: string, filename: string) => {
-    const link = document.createElement('a');
-    link.href = fileData;
-    link.download = filename || 'downloaded-file';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      if (fileData.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = fileData;
+        link.download = filename || 'downloaded-file';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (fileData.includes('temp/')) {
+        const downloadUrl = `https://chatapp-87po.onrender.com/files/${fileData}`;
+        window.open(downloadUrl, '_blank');
+      } else {
+        console.error('Formato de archivo no soportado:', fileData);
+        alert('No se pudo descargar el archivo');
+      }
+    } catch (error) {
+      console.error('Error al descargar archivo:', error);
+      alert('Error al descargar el archivo');
+    }
   };
 
   function toBase64(file: File): Promise<string> {
@@ -196,7 +205,6 @@ const Home = () => {
   const changeChannel = (channel: string) => {
     setCurrentChannel(channel);
     socket.current.emit('joinChannel', channel);
-    // Solicitar explícitamente el historial de archivos
     socket.current.emit('getFileHistory', channel);
   };
 
@@ -212,21 +220,27 @@ const Home = () => {
     });
 
     socket.current.on('file-history', (fileHistory) => {
-      console.log(`Recibido historial de archivos: ${fileHistory?.length || 0} archivos`);
+      console.log('Recibido historial de archivos:', fileHistory);
       if (Array.isArray(fileHistory)) {
-        setFiles(fileHistory);
+        setFiles(prev => {
+          const newFiles = fileHistory.filter(newFile => 
+            !prev.some(existingFile => 
+              existingFile.timestamp === newFile.timestamp && 
+              existingFile.sender === newFile.sender
+            )
+          );
+          return [...prev, ...newFiles];
+        });
       }
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
       console.log("Nuevo archivo recibido:", fileData.name);
       setFiles(prev => {
-        // Evitar duplicados por id o contenido similar
         const exists = prev.some(f => 
           f.timestamp === fileData.timestamp && 
           f.sender === fileData.sender
         );
-        
         return exists ? prev : [...prev, fileData];
       });
     });
@@ -245,26 +259,18 @@ const Home = () => {
       setChat(prev => [...prev, message]);
     });
 
-    socket.current.on('new-file', (fileData: FileMessage) => {
-      console.log("Nuevo archivo recibido:", fileData);
-      setFiles(prev => [...prev, fileData]);
-    });
-
     return () => {
       socket.current.disconnect();
     };
   }, []);
 
   // Join channel on component mount and request file history
-    useEffect(() => {
+  useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
-      
-      // Solicitar explícitamente el historial de archivos después de unirse
       setTimeout(() => {
-        console.log(`Solicitando historial de archivos para ${currentChannel}`);
         socket.current.emit('getFileHistory', currentChannel);
-      }, 500); // Pequeño timeout para asegurar que el join ha sido procesado
+      }, 500);
     }
   }, [myID, currentChannel]);
 
@@ -273,7 +279,6 @@ const Home = () => {
     if (savedMode) {
       setDarkMode(JSON.parse(savedMode));
     } else {
-      // Usar la preferencia del sistema si no hay configuración guardada
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       setDarkMode(prefersDark);
     }
@@ -281,7 +286,6 @@ const Home = () => {
 
   return (
     <div className={`main-container ${darkMode ? 'dark' : ''}`}>
-      {/* Botón de toggle para dark mode */}
       <button 
         onClick={toggleDarkMode}
         className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
@@ -290,9 +294,7 @@ const Home = () => {
         {darkMode ? <Sun/> : <Moon />}
       </button>
 
-      {/* COLUMNA IZQUIERDA - CONTROLES */}
       <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
-        {/* Modal Usuario */}
         {showUsernameModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
@@ -314,33 +316,8 @@ const Home = () => {
           </div>
         )}
 
-        {/* Archivos Compartidos */}
-        {/* {files.length > 0 && (
-          <div className="mb-6">
-            <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {files
-                .filter((file) => file.channel === currentChannel)
-                .map((file, i) => (
-                  <div
-                    key={i}
-                    onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
-                    className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
-                  >
-                    <span className="text-sm flex-1 dark:text-gray-200">
-                      Archivo de {file.sender}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(file.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )} */}
         {renderFiles()}
 
-        {/* Entrada de Mensaje */}
         <div className="flex-1">
           <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
           <div className="space-y-4">
@@ -383,7 +360,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Previsualización Archivo */}
           {file && (
             <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
               <div className="flex justify-between items-center">
@@ -399,7 +375,6 @@ const Home = () => {
           )}
         </div>
 
-        {/* Información Usuario */}
         <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
             <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
@@ -408,16 +383,13 @@ const Home = () => {
         </div>
       </div>
 
-      {/* COLUMNA DERECHA - CHAT */}
       <div className="chat-column dark:bg-gray-900">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
             Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
           </h1>
         </div>
 
-        {/* Selector de Canal */}
         <div className="channels-container">
           {['general', 'auxiliar'].map((channel) => (
             <button
@@ -432,7 +404,6 @@ const Home = () => {
           ))}
         </div>
 
-        {/* Área de mensajes con scroll independiente */}
         <div className="message-area">
           <div className="chat-messages">
             {chat.length === 0 ? (
@@ -445,7 +416,6 @@ const Home = () => {
                   const messageObj: MessageObj = JSON.parse(msg);
                   const isCurrentUser: boolean = messageObj.sender === username;
                   
-                  // Buscar si este mensaje tiene un archivo asociado
                   const associatedFile = files.find(f => 
                     f.sender === messageObj.sender && 
                     new Date(f.timestamp).getTime() - new Date(messageObj.timestamp).getTime() < 1000
@@ -480,7 +450,6 @@ const Home = () => {
                     </div>
                   );
                 } catch {
-                  // Si no se puede parsear como JSON, mostramos el mensaje como sistema
                   return (
                     <div key={i} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200 text-sm mb-2">
                       {msg}
@@ -489,7 +458,7 @@ const Home = () => {
                 }
               })
             )}
-            <div ref={messagesEndRef} /> {/* Para auto-scroll */}
+            <div ref={messagesEndRef} />
           </div>
         </div>
       </div>
