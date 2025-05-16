@@ -218,7 +218,7 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-  if (myID) {
+  if (username && currentChannel) {
     socket.current.emit('joinChannel', currentChannel);
 
     // Solicitar explícitamente el historial de archivos después de unirse
@@ -229,7 +229,7 @@ const Home = () => {
 
     return () => clearTimeout(timeout);
   }
-}, [myID, currentChannel]);
+}, [username, currentChannel]);
 
 socket.current.on('file-history', (fileHistory) => {
   console.log(`Recibido historial de archivos: ${fileHistory?.length || 0} archivos`);
