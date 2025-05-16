@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
-import { Sun, Moon, X, Paperclip } from 'lucide-react';
+import { Sun, Moon, X } from 'lucide-react';
 
 interface PeerRef {
   peerID: string;
@@ -144,6 +144,7 @@ const Home = () => {
 
   useEffect(() => {
     socket.current.on('Id', (id) => {
+      console.log('My ID:', id, myID);
       setMyID(id);
       setShowUsernameModal(true);
     });
