@@ -186,7 +186,7 @@ const Home = () => {
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
-      console.log("Nuevo archivo recibido:", fileData.name);
+      console.log("Nuevo archivo recibido:", fileData);
       setFiles(prev => {
         // Evitar duplicados por id o contenido similar
         const exists = prev.some(f => 
