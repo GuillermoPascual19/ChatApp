@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
@@ -126,7 +125,6 @@ const Home = () => {
     setFile(null);
   };
 
-
   // File Handling
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -136,7 +134,6 @@ const Home = () => {
       alert('File size exceeds 2MB limit');
     }
   };
-
 
   const downloadFile = (fileData: string, filename: string) => {
     const link = document.createElement('a');
@@ -179,7 +176,6 @@ const Home = () => {
 
     socket.current.on('history', (history) => {
       setChat(history);
-      setFiles(files);
     });
 
     socket.current.on('file-history', (fileHistory) => {
@@ -216,18 +212,13 @@ const Home = () => {
       setChat(prev => [...prev, message]);
     });
 
-    socket.current.on('new-file', (fileData: FileMessage) => {
-      console.log("Nuevo archivo recibido:", fileData);
-      setFiles(prev => [...prev, fileData]);
-    });
-
     return () => {
       socket.current.disconnect();
     };
   }, []);
 
   // Join channel on component mount and request file history
-    useEffect(() => {
+  useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
       
