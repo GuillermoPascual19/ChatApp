@@ -10,11 +10,11 @@ interface PeerRef {
 
 interface FileMessage {
   data: string;
+  name?: string;
+  size?: number;
   sender: string;
   timestamp: string;
   channel: string;
-  name?: string;
-  filepath?: string;
 }
 
 interface MessageObj {
@@ -22,7 +22,6 @@ interface MessageObj {
   sender: string;
   text: string;
   timestamp: string;
-  filename?: string;
 }
 
 const Home = () => {
@@ -37,22 +36,14 @@ const Home = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const peersRef = useRef<PeerRef[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
-  const toggleDarkMode = () => {
+   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
+    // Guardar preferencia en localStorage
     localStorage.setItem('darkMode', JSON.stringify(!darkMode));
   };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [chat, files]);
 
   // WebRTC Configuration
   const addPeer = (incomingSignal: string, callerID: string) => {
@@ -84,13 +75,11 @@ const Home = () => {
   const handleSendMessage = async () => {
     if (!message && !file) return;
 
-    const timestamp = new Date().toISOString();
     const formattedMessage = JSON.stringify({
       channel: currentChannel,
       sender: username || 'Anónimo',
-      text: message || (file ? `Compartió un archivo: ${file.name}` : ''),
-      timestamp: timestamp,
-      filename: file?.name
+      text: message,
+      timestamp: new Date().toISOString()
     });
     
     // Send to peers
@@ -102,16 +91,22 @@ const Home = () => {
     if (file) {
       try {
         const fileData = await toBase64(file);
+        // Send to coordinator for history
         socket.current.emit('message', {
           message: formattedMessage,
           channel: currentChannel,
-          file: fileData
+          file: {
+            name: file.name,
+            size: file.size,
+            data: fileData
+          }
         });
       } catch (error) {
         console.error('Error processing file:', error);
         alert('Error processing file');
       }
     } else {
+      // Send text only message
       socket.current.emit('message', {
         message: formattedMessage,
         channel: currentChannel,
@@ -133,53 +128,21 @@ const Home = () => {
     }
   };
 
-  const renderFiles = () => {
-    const channelFiles = files.filter((file) => file.channel === currentChannel);
-    
-    if (channelFiles.length === 0) {
-      return null;
-    }
-    
-    return (
-      <div className="mb-6">
-        <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos ({channelFiles.length})</h3>
-        <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-          {channelFiles.map((file, i) => (
-            <div
-              key={i}
-              onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
-              className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
-            >
-              <Paperclip size={14} className="mr-2 text-gray-500 dark:text-gray-400" />
-              <span className="text-sm flex-1 truncate dark:text-gray-200">
-                {file.name || `Archivo ${i+1}`} <span className="text-xs text-gray-500">({file.sender})</span>
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {new Date(file.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   const downloadFile = (fileData: string, filename: string) => {
     try {
-      if (fileData.startsWith('data:')) {
-        const link = document.createElement('a');
-        link.href = fileData;
-        link.download = filename || 'downloaded-file';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else if (fileData.includes('temp/')) {
-        const downloadUrl = `https://chatapp-87po.onrender.com/files/${fileData}`;
-        window.open(downloadUrl, '_blank');
-      } else {
-        console.error('Formato de archivo no soportado:', fileData);
-        alert('No se pudo descargar el archivo');
+      // Asegurarse de que fileData es una cadena válida
+      if (!fileData || typeof fileData !== 'string') {
+        console.error('Datos de archivo inválidos:', fileData);
+        alert('Error: datos de archivo inválidos');
+        return;
       }
+      
+      const link = document.createElement('a');
+      link.href = fileData;
+      link.download = filename || 'downloaded-file';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (error) {
       console.error('Error al descargar archivo:', error);
       alert('Error al descargar el archivo');
@@ -200,13 +163,6 @@ const Home = () => {
       reader.readAsDataURL(file);
     });
   }
-  
-  // Cambiar canal
-  const changeChannel = (channel: string) => {
-    setCurrentChannel(channel);
-    socket.current.emit('joinChannel', channel);
-    socket.current.emit('getFileHistory', channel);
-  };
 
   // Server Communication
   useEffect(() => {
@@ -218,31 +174,16 @@ const Home = () => {
     socket.current.on('history', (history) => {
       setChat(history);
     });
-
-    socket.current.on('file-history', (fileHistory) => {
-      console.log('Recibido historial de archivos:', fileHistory);
+    
+    socket.current.on('file-history', (fileHistory: FileMessage[]) => {
+      console.log("Recibido historial de archivos:", fileHistory.length);
+      // Asegurarse de que fileHistory es un array para evitar errores
       if (Array.isArray(fileHistory)) {
-        setFiles(prev => {
-          const newFiles = fileHistory.filter(newFile => 
-            !prev.some(existingFile => 
-              existingFile.timestamp === newFile.timestamp && 
-              existingFile.sender === newFile.sender
-            )
-          );
-          return [...prev, ...newFiles];
-        });
+        setFiles(fileHistory);
+      } else {
+        console.error("Formato inválido de historial de archivos:", fileHistory);
+        setFiles([]);
       }
-    });
-
-    socket.current.on('new-file', (fileData: FileMessage) => {
-      console.log("Nuevo archivo recibido:", fileData.name);
-      setFiles(prev => {
-        const exists = prev.some(f => 
-          f.timestamp === fileData.timestamp && 
-          f.sender === fileData.sender
-        );
-        return exists ? prev : [...prev, fileData];
-      });
     });
 
     socket.current.on('user-joined', (payload) => {
@@ -259,211 +200,249 @@ const Home = () => {
       setChat(prev => [...prev, message]);
     });
 
+    socket.current.on('new-file', (fileData: FileMessage) => {
+      console.log("Recibido nuevo archivo:", fileData);
+      setFiles(prev => [...prev, fileData]);
+    });
+
     return () => {
       socket.current.disconnect();
     };
   }, []);
 
-  // Join channel on component mount and request file history
+  // Join channel on component mount
   useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
-      setTimeout(() => {
-        socket.current.emit('getFileHistory', currentChannel);
-      }, 500);
+      // Solicitar explícitamente el historial de archivos
+      socket.current.emit('getFileHistory', currentChannel);
     }
-  }, [myID, currentChannel]);
+  }, [myID]);
 
-  useEffect(() => {
+   useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode) {
       setDarkMode(JSON.parse(savedMode));
     } else {
+      // Usar la preferencia del sistema si no hay configuración guardada
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       setDarkMode(prefersDark);
     }
   }, []);
 
   return (
-    <div className={`main-container ${darkMode ? 'dark' : ''}`}>
-      <button 
-        onClick={toggleDarkMode}
-        className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
-        aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      >
-        {darkMode ? <Sun/> : <Moon />}
-      </button>
+      <div className={`main-container ${darkMode ? 'dark' : ''}`}>
+        {/* Botón de toggle para dark mode */}
+        <button 
+          onClick={toggleDarkMode}
+          className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
+          aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        >
+          {darkMode ? <Sun/> : <Moon />}
+        </button>
 
-      <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
-        {showUsernameModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
-              <h2 className="text-xl font-bold mb-4 dark:text-white">Elige tu nombre</h2>
-              <input
-                type="text"
-                value={tempUsername}
-                onChange={(e) => setTempUsername(e.target.value)}
-                placeholder="Nombre de usuario"
-                className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
-              />
-              <button
-                onClick={handleSetUsername}
-                className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {renderFiles()}
-
-        <div className="flex-1">
-          <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escribe tu mensaje..."
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            />
-            
-            <div className="flex gap-2">
-              <input
-                type="file"
-                onChange={handleFile}
-                className="hidden"
-                id="fileInput"
-              />
-              <label
-                htmlFor="fileInput"
-                className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
-                  file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
-                  'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
-                }`}
-              >
-                {file ? 'Archivo listo' : 'Seleccionar archivo'}
-              </label>
-              <button
-                onClick={handleSendMessage}
-                disabled={!message && !file}
-                className={`flex-1 p-2 rounded-lg border ${
-                  (!message && !file) ? 
-                  'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
-                  'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
-                }`}
-              >
-                Enviar
-              </button>
-            </div>
-          </div>
-
-          {file && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
-              <div className="flex justify-between items-center">
-                <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
-                <button 
-                  onClick={() => setFile(null)}
-                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+        {/* COLUMNA IZQUIERDA - CONTROLES */}
+        <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
+          {/* Modal Usuario */}
+          {showUsernameModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">Elige tu nombre</h2>
+                <input
+                  type="text"
+                  value={tempUsername}
+                  onChange={(e) => setTempUsername(e.target.value)}
+                  placeholder="Nombre de usuario"
+                  className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+                />
+                <button
+                  onClick={handleSetUsername}
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
                 >
-                  <X />
+                  Confirmar
                 </button>
               </div>
             </div>
           )}
-        </div>
 
-        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
-            <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Canal: #{currentChannel}</p>
+          {/* Archivos Compartidos */}
+          {files.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {files
+                  .filter((file) => file.channel === currentChannel)
+                  .map((file, i) => (
+                    <div
+                      key={i}
+                      onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
+                      className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
+                    >
+                      <span className="text-sm flex-1 dark:text-gray-200">
+                        Archivo de {file.sender}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(file.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Entrada de Mensaje */}
+<div className="flex-1">
+  <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
+  <div className="space-y-4">
+    <input
+      type="text"
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      placeholder="Escribe tu mensaje..."
+      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+    />
+    
+    <div className="flex gap-2">
+      <input
+        type="file"
+        onChange={handleFile}
+        className="hidden"
+        id="fileInput"
+      />
+      <label
+        htmlFor="fileInput"
+        className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
+          file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
+          'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+        }`}
+      >
+        {file ? 'Archivo listo' : 'Seleccionar archivo'}
+      </label>
+      <button
+        onClick={handleSendMessage}
+        disabled={!message && !file}
+        className={`flex-1 p-2 rounded-lg border ${
+          (!message && !file) ? 
+          'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
+          'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
+        }`}
+      >
+        Enviar
+      </button>
+    </div>
+  </div>
+
+  {/* Previsualización Archivo */}
+  {file && (
+    <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
+      <div className="flex justify-between items-center">
+        <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
+        <button 
+          onClick={() => setFile(null)}
+          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+        >
+          <X />
+        </button>
+      </div>
+    </div>
+  )}
+</div>
+
+          {/* Información Usuario */}
+          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+              <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Canal: #{currentChannel}</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="chat-column dark:bg-gray-900">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-            Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
-          </h1>
-        </div>
+        {/* COLUMNA DERECHA - CHAT */}
+        <div className="chat-column dark:bg-gray-900">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+              Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
+            </h1>
+          </div>
 
-        <div className="channels-container">
-          {['general', 'auxiliar'].map((channel) => (
-            <button
-              key={channel}
-              onClick={() => changeChannel(channel)}
-              className={`channel-btn ${
-                currentChannel === channel ? 'active' : ''
-              }`}
-            >
-              #{channel}
-            </button>
-          ))}
-        </div>
+          {/* Selector de Canal */}
+          <div className="channels-container">
+            {['general', 'auxiliar'].map((channel) => (
+              <button
+                key={channel}
+                onClick={() => {
+                  setCurrentChannel(channel);
+                  socket.current.emit('joinChannel', channel);
+                  // Solicitar explícitamente el historial de archivos
+                  socket.current.emit('getFileHistory', channel);
+                }}
+                className={`channel-btn ${
+                  currentChannel === channel ? 'active' : ''
+                }`}
+              >
+                #{channel}
+              </button>
+            ))}
+          </div>
 
-        <div className="message-area">
-          <div className="chat-messages">
-            {chat.length === 0 ? (
-              <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                No hay mensajes en este canal
-              </div>
-            ) : (
-              chat.map((msg: string, i: number) => {
-                try {
+          {/* Área de mensajes con scroll independiente */}
+          <div className="message-area">
+            <div className="chat-messages">
+                {chat.length === 0 ? (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  No hay mensajes en este canal
+                </div>
+                ) : (
+                chat.map((msg: string, i: number) => {
+                  
+                  try {
                   const messageObj: MessageObj = JSON.parse(msg);
                   const isCurrentUser: boolean = messageObj.sender === username;
                   
-                  const associatedFile = files.find(f => 
-                    f.sender === messageObj.sender && 
-                    new Date(f.timestamp).getTime() - new Date(messageObj.timestamp).getTime() < 1000
-                  );
-                  
                   return (
                     <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`}>
-                      <div 
-                        className={`message-bubble ${isCurrentUser ? 'own' : 'other'}`}
-                      >
-                        <div className="message-content">
-                          <span className="message-sender">
-                            {messageObj.sender}:
-                          </span>
-                          <span className="message-text">
-                            {messageObj.text}
-                          </span>
-                        </div>
-                        <div className="message-time">
-                          {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </div>
-                        {associatedFile && (
-                          <button 
-                            onClick={() => downloadFile(associatedFile.data, associatedFile.name || `file-${i}`)}
-                            className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
-                          >
-                            <Paperclip size={12}/>
-                            <span className="ml-1">Descargar archivo</span>
-                          </button>
-                        )}
+                    <div 
+                      className={`message-bubble ${isCurrentUser ? 'own' : 'other'}`}
+                    >
+                      <div className="message-content">
+                      <span className="message-sender">
+                        {messageObj.sender}:
+                      </span>
+                      <span className="message-text">
+                        {messageObj.text}
+                      </span>
                       </div>
+                      <div className="message-time">
+                      {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                      {files[i] && (
+                      <button 
+                        onClick={() => downloadFile(files[i].data, files[i].name || `file-${i}`)}
+                        className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
+                      >
+                        <Paperclip size={12}/>
+                        <span className="ml-1">Descargar</span>
+                      </button>
+                      )}
+                    </div>
                     </div>
                   );
-                } catch {
+                  } catch {
                   return (
                     <div key={i} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200 text-sm mb-2">
-                      {msg}
+                    {msg}
                     </div>
                   );
-                }
-              })
-            )}
-            <div ref={messagesEndRef} />
+                  }
+                })
+                )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 };
 
 export default Home;
