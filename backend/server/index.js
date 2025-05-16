@@ -158,6 +158,7 @@ function loadFilesFromDisk() {
               });
               console.log(`Archivo cargado: ${filename} en canal ${channelName}`);
             }
+            console.log("Archivos en canal", channelName, channels[channelName].fileHistory.length);
           }
         } catch (error) {
           console.error(`Error procesando archivo ${filename}:`, error);
