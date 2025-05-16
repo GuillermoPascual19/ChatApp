@@ -217,18 +217,37 @@ const Home = () => {
     };
   }, []);
 
-  // Join channel on component mount and request file history
   useEffect(() => {
-    if (myID) {
-      socket.current.emit('joinChannel', currentChannel);
-      
-      // Solicitar explícitamente el historial de archivos después de unirse
-      setTimeout(() => {
-        console.log(`Solicitando historial de archivos para ${currentChannel}`);
-        socket.current.emit('getFileHistory', currentChannel);
-      }, 500); // Pequeño timeout para asegurar que el join ha sido procesado
-    }
-  }, [myID, currentChannel]);
+  if (myID) {
+    socket.current.emit('joinChannel', currentChannel);
+
+    // Solicitar explícitamente el historial de archivos después de unirse
+    const timeout = setTimeout(() => {
+      console.log(`Solicitando historial de archivos para ${currentChannel}`);
+      socket.current.emit('getFileHistory', currentChannel);
+    }, 300); // Pequeño delay para asegurar que el join ha sido procesado
+
+    return () => clearTimeout(timeout);
+  }
+}, [myID, currentChannel]);
+
+socket.current.on('file-history', (fileHistory) => {
+  console.log(`Recibido historial de archivos: ${fileHistory?.length || 0} archivos`);
+  if (Array.isArray(fileHistory)) {
+    setFiles((prev) => {
+      const merged = [...prev];
+      fileHistory.forEach((newFile) => {
+        const exists = merged.some(f => 
+          f.timestamp === newFile.timestamp && 
+          f.sender === newFile.sender &&
+          f.channel === newFile.channel
+        );
+        if (!exists) merged.push(newFile);
+      });
+      return merged;
+    });
+  }
+});
 
   useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
