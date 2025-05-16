@@ -219,6 +219,7 @@ const Home = () => {
 
   useEffect(() => {
   if (username && currentChannel) {
+    console.log(myID)
     socket.current.emit('joinChannel', currentChannel);
 
     // Solicitar explícitamente el historial de archivos después de unirse
