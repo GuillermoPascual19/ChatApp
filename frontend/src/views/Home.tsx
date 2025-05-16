@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
@@ -13,6 +14,7 @@ interface FileMessage {
   sender: string;
   timestamp: string;
   channel: string;
+  name?: string;
 }
 
 interface MessageObj {
@@ -34,14 +36,24 @@ const Home = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const peersRef = useRef<PeerRef[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const socket = useRef(io('https://chatapp-87po.onrender.com', { transports: ['websocket'] }));
 
-   const toggleDarkMode = () => {
+  const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     // Guardar preferencia en localStorage
     localStorage.setItem('darkMode', JSON.stringify(!darkMode));
   };
+
+  // Auto scroll cuando hay nuevos mensajes
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chat, files]);
 
   // WebRTC Configuration
   const addPeer = (incomingSignal: string, callerID: string) => {
@@ -144,10 +156,15 @@ const Home = () => {
       reader.readAsDataURL(file);
     });
   }
-  const requestFileHistory = () => {
-    socket.current.emit('getFileHistory', currentChannel);
-    console.log(`Requesting file history for channel ${currentChannel}`);
+  
+  // Cambiar canal
+  const changeChannel = (channel: string) => {
+    setCurrentChannel(channel);
+    socket.current.emit('joinChannel', channel);
+    // Solicitar explícitamente el historial de archivos
+    socket.current.emit('getFileHistory', channel);
   };
+
   // Server Communication
   useEffect(() => {
     socket.current.on('Id', (id) => {
@@ -158,7 +175,8 @@ const Home = () => {
     socket.current.on('history', (history) => {
       setChat(history);
     });
-      socket.current.on('file-history', (fileHistory) => {
+
+    socket.current.on('file-history', (fileHistory) => {
       console.log(`Received file history: ${fileHistory?.length || 0} files`);
       setFiles(fileHistory || []);
     });
@@ -178,6 +196,7 @@ const Home = () => {
     });
 
     socket.current.on('new-file', (fileData: FileMessage) => {
+      console.log("Nuevo archivo recibido:", fileData);
       setFiles(prev => [...prev, fileData]);
     });
 
@@ -186,15 +205,16 @@ const Home = () => {
     };
   }, []);
 
-  // Join channel on component mount
+  // Join channel on component mount and request file history
   useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
-       requestFileHistory();
+      // Solicitar explícitamente el historial de archivos
+      socket.current.emit('getFileHistory', currentChannel);
     }
   }, [myID]);
 
-   useEffect(() => {
+  useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
     if (savedMode) {
       setDarkMode(JSON.parse(savedMode));
@@ -206,214 +226,220 @@ const Home = () => {
   }, []);
 
   return (
-      <div className={`main-container ${darkMode ? 'dark' : ''}`}>
-        {/* Botón de toggle para dark mode */}
-        <button 
-          onClick={toggleDarkMode}
-          className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
-          aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-        >
-          {darkMode ? <Sun/> : <Moon />}
-        </button>
+    <div className={`main-container ${darkMode ? 'dark' : ''}`}>
+      {/* Botón de toggle para dark mode */}
+      <button 
+        onClick={toggleDarkMode}
+        className="fixed bottom-4 right-4 p-3 rounded-full bg-blue-500 text-white shadow-lg z-50"
+        aria-label={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      >
+        {darkMode ? <Sun/> : <Moon />}
+      </button>
 
-        {/* COLUMNA IZQUIERDA - CONTROLES */}
-        <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
-          {/* Modal Usuario */}
-          {showUsernameModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
-                <h2 className="text-xl font-bold mb-4 dark:text-white">Elige tu nombre</h2>
-                <input
-                  type="text"
-                  value={tempUsername}
-                  onChange={(e) => setTempUsername(e.target.value)}
-                  placeholder="Nombre de usuario"
-                  className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
-                />
-                <button
-                  onClick={handleSetUsername}
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+      {/* COLUMNA IZQUIERDA - CONTROLES */}
+      <div className="controls-column dark:bg-gray-800 dark:border-gray-700">
+        {/* Modal Usuario */}
+        {showUsernameModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-80">
+              <h2 className="text-xl font-bold mb-4 dark:text-white">Elige tu nombre</h2>
+              <input
+                type="text"
+                value={tempUsername}
+                onChange={(e) => setTempUsername(e.target.value)}
+                placeholder="Nombre de usuario"
+                className="w-full p-2 mb-4 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:placeholder-gray-400"
+              />
+              <button
+                onClick={handleSetUsername}
+                className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Archivos Compartidos */}
+        {files.length > 0 && (
+          <div className="mb-6">
+            <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
+            <div className="grid grid-cols-1 gap-2">
+              {files
+                .filter((file) => file.channel === currentChannel)
+                .map((file, i) => (
+                  <div
+                    key={i}
+                    onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
+                    className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
+                  >
+                    <span className="text-sm flex-1 dark:text-gray-200">
+                      Archivo de {file.sender}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {new Date(file.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Entrada de Mensaje */}
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Escribe tu mensaje..."
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            />
+            
+            <div className="flex gap-2">
+              <input
+                type="file"
+                onChange={handleFile}
+                className="hidden"
+                id="fileInput"
+              />
+              <label
+                htmlFor="fileInput"
+                className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
+                  file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
+                  'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+                }`}
+              >
+                {file ? 'Archivo listo' : 'Seleccionar archivo'}
+              </label>
+              <button
+                onClick={handleSendMessage}
+                disabled={!message && !file}
+                className={`flex-1 p-2 rounded-lg border ${
+                  (!message && !file) ? 
+                  'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
+                  'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
+                }`}
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+
+          {/* Previsualización Archivo */}
+          {file && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
+              <div className="flex justify-between items-center">
+                <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
+                <button 
+                  onClick={() => setFile(null)}
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                 >
-                  Confirmar
+                  <X />
                 </button>
               </div>
             </div>
           )}
-
-          {/* Archivos Compartidos */}
-          {files.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
-              <div className="grid grid-cols-1 gap-2">
-                {files
-                  .filter((f) => f.channel === currentChannel)
-                  .map((file, i) => (
-                    <div
-                      key={i}
-                      onClick={() => downloadFile(file.data, `file-${i}`)}
-                      className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
-                    >
-                      <span className="text-sm flex-1 dark:text-gray-200">Archivo de {file.sender}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(file.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* Entrada de Mensaje */}
-<div className="flex-1">
-  <h2 className="text-lg font-semibold mb-4 dark:text-white">Enviar Mensaje</h2>
-  <div className="space-y-4">
-    <input
-      type="text"
-      value={message}
-      onChange={(e) => setMessage(e.target.value)}
-      placeholder="Escribe tu mensaje..."
-      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-    />
-    
-    <div className="flex gap-2">
-      <input
-        type="file"
-        onChange={handleFile}
-        className="hidden"
-        id="fileInput"
-      />
-      <label
-        htmlFor="fileInput"
-        className={`flex-1 p-2 text-center rounded-lg cursor-pointer border ${
-          file ? 'border-green-500 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200' : 
-          'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
-        }`}
-      >
-        {file ? 'Archivo listo' : 'Seleccionar archivo'}
-      </label>
-      <button
-        onClick={handleSendMessage}
-        disabled={!message && !file}
-        className={`flex-1 p-2 rounded-lg border ${
-          (!message && !file) ? 
-          'border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' :
-          'border-blue-500 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white'
-        }`}
-      >
-        Enviar
-      </button>
-    </div>
-  </div>
-
-  {/* Previsualización Archivo */}
-  {file && (
-    <div className="mt-4 p-3 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
-      <div className="flex justify-between items-center">
-        <span className="text-sm truncate dark:text-gray-200">{file.name}</span>
-        <button 
-          onClick={() => setFile(null)}
-          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-        >
-          <X />
-        </button>
-      </div>
-    </div>
-  )}
-</div>
-
-          {/* Información Usuario */}
-          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
-              <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Canal: #{currentChannel}</p>
-            </div>
-          </div>
         </div>
 
-        {/* COLUMNA DERECHA - CHAT */}
-        <div className="chat-column dark:bg-gray-900">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
-            </h1>
+        {/* Información Usuario */}
+        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+            <p className="font-semibold dark:text-white">{username || 'Anónimo'}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Canal: #{currentChannel}</p>
           </div>
+        </div>
+      </div>
 
-          {/* Selector de Canal */}
-          <div className="channels-container">
-            {['general', 'auxiliar'].map((channel) => (
-              <button
-                key={channel}
-                onClick={() => {
-                  setCurrentChannel(channel);
-                  socket.current.emit('joinChannel', channel);
-                }}
-                className={`channel-btn ${
-                  currentChannel === channel ? 'active' : ''
-                }`}
-              >
-                #{channel}
-              </button>
-            ))}
-          </div>
+      {/* COLUMNA DERECHA - CHAT */}
+      <div className="chat-column dark:bg-gray-900">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Chat P2P - <span className="text-blue-600 dark:text-blue-400">{username || 'Anónimo'}</span>
+          </h1>
+        </div>
 
-          {/* Área de mensajes con scroll independiente */}
-          <div className="message-area">
-            <div className="chat-messages">
-                {chat.length === 0 ? (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                  No hay mensajes en este canal
-                </div>
-                ) : (
-                chat.map((msg: string, i: number) => {
-                  
-                  try {
+        {/* Selector de Canal */}
+        <div className="channels-container">
+          {['general', 'auxiliar'].map((channel) => (
+            <button
+              key={channel}
+              onClick={() => changeChannel(channel)}
+              className={`channel-btn ${
+                currentChannel === channel ? 'active' : ''
+              }`}
+            >
+              #{channel}
+            </button>
+          ))}
+        </div>
+
+        {/* Área de mensajes con scroll independiente */}
+        <div className="message-area">
+          <div className="chat-messages">
+            {chat.length === 0 ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                No hay mensajes en este canal
+              </div>
+            ) : (
+              chat.map((msg: string, i: number) => {
+                try {
                   const messageObj: MessageObj = JSON.parse(msg);
                   const isCurrentUser: boolean = messageObj.sender === username;
                   
+                  // Buscar si este mensaje tiene un archivo asociado
+                  const associatedFile = files.find(f => 
+                    f.sender === messageObj.sender && 
+                    new Date(f.timestamp).getTime() - new Date(messageObj.timestamp).getTime() < 1000
+                  );
+                  
                   return (
                     <div key={i} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`}>
-                    <div 
-                      className={`message-bubble ${isCurrentUser ? 'own' : 'other'}`}
-                    >
-                      <div className="message-content">
-                      <span className="message-sender">
-                        {messageObj.sender}:
-                      </span>
-                      <span className="message-text">
-                        {messageObj.text}
-                      </span>
-                      </div>
-                      <div className="message-time">
-                      {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </div>
-                      {files[i] && (
-                      <button 
-                        onClick={() => downloadFile(files[i].data, `file-${i}`)}
-                        className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
+                      <div 
+                        className={`message-bubble ${isCurrentUser ? 'own' : 'other'}`}
                       >
-                        <Paperclip size={12}/>
-                        <span className="ml-1">Descargar</span>
-                      </button>
-                      )}
-                    </div>
+                        <div className="message-content">
+                          <span className="message-sender">
+                            {messageObj.sender}:
+                          </span>
+                          <span className="message-text">
+                            {messageObj.text}
+                          </span>
+                        </div>
+                        <div className="message-time">
+                          {new Date(messageObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </div>
+                        {associatedFile && (
+                          <button 
+                            onClick={() => downloadFile(associatedFile.data, associatedFile.name || `file-${i}`)}
+                            className="mt-1 text-xs text-blue-200 hover:underline flex items-center"
+                          >
+                            <Paperclip size={12}/>
+                            <span className="ml-1">Descargar archivo</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
-                  } catch {
+                } catch {
+                  // Si no se puede parsear como JSON, mostramos el mensaje como sistema
                   return (
                     <div key={i} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg dark:text-gray-200 text-sm mb-2">
-                    {msg}
+                      {msg}
                     </div>
                   );
-                  }
-                })
-                )}
-            </div>
+                }
+              })
+            )}
+            <div ref={messagesEndRef} /> {/* Para auto-scroll */}
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
 };
 
 export default Home;
