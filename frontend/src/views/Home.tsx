@@ -85,12 +85,15 @@ const Home = () => {
   const handleSendMessage = async () => {
     if (!message && !file) return;
 
+    const timestamp = new Date().toISOString();
     const formattedMessage = JSON.stringify({
       channel: currentChannel,
       sender: username || 'Anónimo',
-      text: message,
-      timestamp: new Date().toISOString()
+      text: message || (file ? `Compartió un archivo: ${file.name}` : ''),
+      timestamp: timestamp,
+      filename: file?.name // Añadir el nombre original del archivo
     });
+    
     // Send to peers
     peersRef.current.forEach(({ peer }) => {
       peer.send(formattedMessage);
@@ -123,6 +126,7 @@ const Home = () => {
     setFile(null);
   };
 
+
   // File Handling
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -131,6 +135,37 @@ const Home = () => {
     } else {
       alert('File size exceeds 2MB limit');
     }
+  };
+
+  const renderFiles = () => {
+    const channelFiles = files.filter((file) => file.channel === currentChannel);
+    
+    if (channelFiles.length === 0) {
+      return null;
+    }
+    
+    return (
+      <div className="mb-6">
+        <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos ({channelFiles.length})</h3>
+        <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+          {channelFiles.map((file, i) => (
+            <div
+              key={i}
+              onClick={() => downloadFile(file.data, file.name || `file-${i}`)}
+              className="p-3 bg-blue-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors flex items-center"
+            >
+              <Paperclip size={14} className="mr-2 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm flex-1 truncate dark:text-gray-200">
+                {file.name || `Archivo ${i+1}`} <span className="text-xs text-gray-500">({file.sender})</span>
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date(file.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const downloadFile = (fileData: string, filename: string) => {
@@ -177,8 +212,23 @@ const Home = () => {
     });
 
     socket.current.on('file-history', (fileHistory) => {
-      console.log(`Received file history: ${fileHistory?.length || 0} files`);
-      setFiles(fileHistory || []);
+      console.log(`Recibido historial de archivos: ${fileHistory?.length || 0} archivos`);
+      if (Array.isArray(fileHistory)) {
+        setFiles(fileHistory);
+      }
+    });
+
+    socket.current.on('new-file', (fileData: FileMessage) => {
+      console.log("Nuevo archivo recibido:", fileData.name);
+      setFiles(prev => {
+        // Evitar duplicados por id o contenido similar
+        const exists = prev.some(f => 
+          f.timestamp === fileData.timestamp && 
+          f.sender === fileData.sender
+        );
+        
+        return exists ? prev : [...prev, fileData];
+      });
     });
 
     socket.current.on('user-joined', (payload) => {
@@ -206,13 +256,17 @@ const Home = () => {
   }, []);
 
   // Join channel on component mount and request file history
-  useEffect(() => {
+    useEffect(() => {
     if (myID) {
       socket.current.emit('joinChannel', currentChannel);
-      // Solicitar explícitamente el historial de archivos
-      socket.current.emit('getFileHistory', currentChannel);
+      
+      // Solicitar explícitamente el historial de archivos después de unirse
+      setTimeout(() => {
+        console.log(`Solicitando historial de archivos para ${currentChannel}`);
+        socket.current.emit('getFileHistory', currentChannel);
+      }, 500); // Pequeño timeout para asegurar que el join ha sido procesado
     }
-  }, [myID]);
+  }, [myID, currentChannel]);
 
   useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
@@ -261,7 +315,7 @@ const Home = () => {
         )}
 
         {/* Archivos Compartidos */}
-        {files.length > 0 && (
+        {/* {files.length > 0 && (
           <div className="mb-6">
             <h3 className="font-semibold mb-3 dark:text-white">Archivos compartidos</h3>
             <div className="grid grid-cols-1 gap-2">
@@ -283,7 +337,8 @@ const Home = () => {
                 ))}
             </div>
           </div>
-        )}
+        )} */}
+        {renderFiles()}
 
         {/* Entrada de Mensaje */}
         <div className="flex-1">

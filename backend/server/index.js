@@ -36,7 +36,7 @@ const channels = {
 const users = new Map();
 
 // Función para guardar un archivo en la carpeta temporal
-function saveFile(fileData, channel, filename) {
+function saveFile(fileData, channel, sender, originalFilename) {
   // Crear una carpeta para el canal si no existe
   const channelDir = path.join(tempDir, channel);
   if (!fs.existsSync(channelDir)) {
@@ -54,29 +54,55 @@ function saveFile(fileData, channel, filename) {
   const base64Data = matches[2];
   const buffer = Buffer.from(base64Data, 'base64');
   
-  // Crear un nombre de archivo único
+  // Crear un nombre de archivo único con timestamp
   const timestamp = Date.now();
-  const safeFilename = `${timestamp}_${filename.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  // Sanitizar el nombre del archivo para evitar problemas
+  const sanitizedName = originalFilename ? originalFilename.replace(/[^a-zA-Z0-9.]/g, '_') : `file_${timestamp}`;
+  const safeFilename = `${timestamp}_${sanitizedName}`;
   const filePath = path.join(channelDir, safeFilename);
 
   // Guardar el archivo
   fs.writeFileSync(filePath, buffer);
   console.log(`Archivo guardado en: ${filePath}`);
   
+  // Determinar el tipo MIME basado en la extensión
+  const ext = path.extname(sanitizedName).toLowerCase();
+  let mimeType = 'application/octet-stream'; // Tipo por defecto
+  
+  // Mapeo simple de extensiones comunes
+  const mimeTypes = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  };
+  
+  if (mimeTypes[ext]) {
+    mimeType = mimeTypes[ext];
+  }
+  
   return {
     filename: safeFilename,
+    originalName: sanitizedName,
     path: filePath,
-    relativePath: path.join(channel, safeFilename)
+    relativePath: path.join(channel, safeFilename),
+    mimeType: mimeType
   };
 }
 
-// Cargar archivos existentes al iniciar el servidor
+// Actualizar la función loadFilesFromDisk para cargar correctamente los archivos
 function loadFilesFromDisk() {
   if (!fs.existsSync(tempDir)) return;
 
   const channelDirs = fs.readdirSync(tempDir, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory())
     .map(dirent => dirent.name);
+  
+  console.log(`Encontrados ${channelDirs.length} canales con archivos: ${channelDirs.join(', ')}`);
   
   channelDirs.forEach(channelName => {
     if (!channels[channelName]) {
@@ -85,6 +111,8 @@ function loadFilesFromDisk() {
     
     const channelDir = path.join(tempDir, channelName);
     const files = fs.readdirSync(channelDir);
+    
+    console.log(`Canal ${channelName}: ${files.length} archivos encontrados`);
     
     files.forEach(filename => {
       const filePath = path.join(channelDir, filename);
@@ -135,6 +163,8 @@ function loadFilesFromDisk() {
         console.log(`Cargado archivo: ${filename} para el canal ${channelName}`);
       }
     });
+    
+    console.log(`Canal ${channelName}: ${channels[channelName].fileHistory.length} archivos cargados en memoria`);
   });
   
   console.log('Archivos cargados desde el disco correctamente');
@@ -225,64 +255,69 @@ io.on('connection', (socket) => {
   });
 
   // Message handling
-  socket.on('message', ({ message, channel, file }) => {
-    const username = users.get(socket.id)?.username;
-    let formattedMessage = message;
+socket.on('message', ({ message, channel, file }) => {
+  const username = users.get(socket.id)?.username;
+  let formattedMessage = message;
+  
+  console.log(`Message from ${username} in channel ${channel}, has file: ${!!file}`);
+  
+  // We need to handle file specifically
+  if (file) {
+    console.log(`File received from ${username} in channel ${channel}`);
     
-    console.log(`Message from ${username} in channel ${channel}, has file: ${!!file}`);
-    
-    // We need to handle file specifically
-    if (file) {
-      console.log(`File received from ${username} in channel ${channel}`);
+    try {
+      // Parse the message to get file name
+      const messageObj = JSON.parse(formattedMessage);
+      let fileName = `file_${Date.now()}`;
       
-      try {
-        // Parse the message to get file name
-        const messageObj = JSON.parse(formattedMessage);
-        const fileName = `file_${Date.now()}`;
+      // Si el mensaje tiene info del archivo, usamos ese nombre
+      if (messageObj.filename) {
+        fileName = messageObj.filename;
+      }
+      
+      // Guardar archivo en disco
+      const fileInfo = saveFile(file, channel, username, fileName);
+      
+      if (fileInfo) {
+        // Crear objeto de archivo para el historial
+        const fileData = {
+          name: fileInfo.originalName,
+          data: file, // Mantener la versión base64 para el frontend
+          sender: username,
+          timestamp: new Date().toISOString(),
+          channel: channel,
+          filepath: fileInfo.relativePath
+        };
         
-        // Guardar archivo en disco
-        const fileInfo = saveFile(file, channel, fileName);
-        
-        if (fileInfo) {
-          // Crear objeto de archivo para el historial
-          const fileData = {
-            name: fileName,
-            data: file, // Mantener la versión base64 para el frontend
-            sender: username,
-            timestamp: new Date().toISOString(),
-            channel: channel,
-            filepath: fileInfo.relativePath
-          };
-          
-          // Store file info in history
-          const fileMessage = `[${channel}] [${username}]: ${messageObj.text} [Archivo ${fileName}]`;
-          channels[channel].history.unshift(fileMessage);
+        // Store file info in history
+        const fileMessage = `[${channel}] [${username}]: ${messageObj.text} [Archivo ${fileInfo.originalName}]`;
+        channels[channel].history.unshift(fileMessage);
 
-          // Guardar el archivo en el historial de archivos del canal
-          channels[channel].fileHistory.push(fileData);
-          
-          // Send file to all clients in the channel
-          console.log(`Broadcasting new file to channel ${channel}`);
-          io.to(channel).emit('new-file', fileData);
-          io.to(channel).emit('new-message', fileMessage, true);
-        } else {
-          console.error('Error al guardar el archivo');
-          socket.emit('error', { message: 'Error al guardar el archivo' });
-        }
-      } catch (error) {
-        console.error('Error processing file:', error);
-        socket.emit('error', { message: 'Error processing file' });
+        // Guardar el archivo en el historial de archivos del canal
+        channels[channel].fileHistory.push(fileData);
+        
+        // Send file to all clients in the channel
+        console.log(`Broadcasting new file to channel ${channel}`);
+        io.to(channel).emit('new-file', fileData);
+        io.to(channel).emit('new-message', fileMessage, true);
+      } else {
+        console.error('Error al guardar el archivo');
+        socket.emit('error', { message: 'Error al guardar el archivo' });
       }
-    } else {
-      // Regular text message
-      channels[channel].history.unshift(formattedMessage);
-      if (channels[channel].history.length > 100) {
-        channels[channel].history.pop(); // Eliminar el mensaje más antiguo
-      }
-      
-      io.to(channel).emit('new-message', formattedMessage, true);
+    } catch (error) {
+      console.error('Error processing file:', error);
+      socket.emit('error', { message: 'Error processing file' });
     }
-  });
+  } else {
+    // Regular text message
+    channels[channel].history.unshift(formattedMessage);
+    if (channels[channel].history.length > 100) {
+      channels[channel].history.pop(); // Eliminar el mensaje más antiguo
+    }
+    
+    io.to(channel).emit('new-message', formattedMessage, true);
+  }
+});
 
   // WebRTC signaling
   socket.on('sendSignal', ({ userToSignal, callerID, signal }) => {
