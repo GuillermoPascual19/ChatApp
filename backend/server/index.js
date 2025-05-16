@@ -93,37 +93,38 @@ function loadFilesFromDisk() {
     const channelDirs = fs.readdirSync(tempDir, { withFileTypes: true })
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
-    
+
     console.log(`Canales encontrados: ${channelDirs.join(', ')}`);
 
     channelDirs.forEach(channelName => {
-      // Crear canal si no existe
+      // Asegurar que el canal esté definido
       if (!channels[channelName]) {
         channels[channelName] = { history: [], fileHistory: [], coordinator: null };
       }
 
       const channelDir = path.join(tempDir, channelName);
       const files = fs.readdirSync(channelDir);
-      
+
       files.forEach(filename => {
         try {
           const filePath = path.join(channelDir, filename);
           const stats = fs.statSync(filePath);
-          
+
           if (stats.isFile()) {
-            // Parsear información del nombre del archivo
+            // Parsear nombre del archivo
             const [timestamp, ...nameParts] = filename.split('_');
             const originalName = nameParts.join('_');
-            
-            // Leer archivo
+
+            // Validar timestamp
+            if (!timestamp || isNaN(parseInt(timestamp))) {
+              console.warn(`Archivo con nombre inválido ignorado: ${filename}`);
+              return;
+            }
+
             const fileBuffer = fs.readFileSync(filePath);
             const base64Data = fileBuffer.toString('base64');
-            
-            // Determinar tipo MIME
+
             const ext = path.extname(filename).toLowerCase();
-            let mimeType = 'application/octet-stream';
-            
-            // Mapeo de tipos MIME
             const mimeTypes = {
               '.jpg': 'image/jpeg',
               '.jpeg': 'image/jpeg',
@@ -134,19 +135,15 @@ function loadFilesFromDisk() {
               '.doc': 'application/msword',
               '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             };
-            
-            if (mimeTypes[ext]) {
-              mimeType = mimeTypes[ext];
-            }
-            
-            // Crear data URI
+            const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
             const dataUri = `data:${mimeType};base64,${base64Data}`;
-            
-            // Verificar si el archivo ya está en el historial
+            const relativePath = path.join('temp', channelName, filename);
+
             const exists = channels[channelName].fileHistory.some(
-              f => f.filepath === path.join('temp', channelName, filename)
+              f => f.filepath === relativePath
             );
-            
+
             if (!exists) {
               channels[channelName].fileHistory.push({
                 name: originalName,
@@ -154,21 +151,25 @@ function loadFilesFromDisk() {
                 sender: 'Sistema (cargado)',
                 timestamp: new Date(parseInt(timestamp)).toISOString(),
                 channel: channelName,
-                filepath: path.join('temp', channelName, filename)
+                filepath: relativePath
               });
+
               console.log(`Archivo cargado: ${filename} en canal ${channelName}`);
             }
-            console.log("Archivos en canal", channelName, channels[channelName].fileHistory);
           }
         } catch (error) {
           console.error(`Error procesando archivo ${filename}:`, error);
         }
       });
+
+      // Verificación final para cada canal
+      console.log("Archivos en canal", channelName, channels[channelName].fileHistory.length);
     });
   } catch (error) {
     console.error('Error en loadFilesFromDisk:', error);
   }
 }
+
 
 // Cargar archivos existentes al iniciar
 loadFilesFromDisk();
